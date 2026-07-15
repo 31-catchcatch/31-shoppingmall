@@ -30,6 +30,11 @@ public class Product extends BaseTimeEntity {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
+    /** DB 정의서 v2 추가 컬럼 - 브랜드 미지정 상품도 있을 수 있어 Null 허용 */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id")
+    private Brand brand;
+
     @Column(nullable = false, length = 100)
     private String name;
 
@@ -57,10 +62,11 @@ public class Product extends BaseTimeEntity {
     private List<ProductOption> options = new ArrayList<>();
 
     @Builder
-    public Product(SellerApplication seller, Category category, String name, Integer price,
+    public Product(SellerApplication seller, Category category, Brand brand, String name, Integer price,
                    Integer discountRate, String description, String thumbnailUrl) {
         this.seller = seller;
         this.category = category;
+        this.brand = brand;
         this.name = name;
         this.price = price;
         this.discountRate = discountRate == null ? 0 : discountRate;

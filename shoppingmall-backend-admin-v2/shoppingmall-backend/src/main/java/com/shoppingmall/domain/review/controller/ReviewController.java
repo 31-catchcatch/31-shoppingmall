@@ -1,6 +1,7 @@
 package com.shoppingmall.domain.review.controller;
 
 import com.shoppingmall.domain.review.dto.request.ReviewCreateRequest;
+import com.shoppingmall.domain.review.dto.response.MyReviewResponse;
 import com.shoppingmall.domain.review.dto.response.ReviewResponse;
 import com.shoppingmall.domain.review.service.ReviewService;
 import com.shoppingmall.global.common.ApiResponse;
@@ -42,5 +43,15 @@ public class ReviewController {
 
         Page<ReviewResponse> response = reviewService.getProductReviews(productId, pageable);
         return ResponseEntity.ok(ApiResponse.success("상품 리뷰 목록 조회가 완료되었습니다.", PageResponse.from(response)));
+    }
+
+    // 3. 내가 작성한 리뷰 목록 조회 (마이페이지, GET) - 토큰 인증 필수
+    @GetMapping("/users/me/reviews")
+    public ResponseEntity<ApiResponse<PageResponse<MyReviewResponse>>> getMyReviews(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        Page<MyReviewResponse> response = reviewService.getMyReviews(userDetails.getUser().getId(), pageable);
+        return ResponseEntity.ok(ApiResponse.success("내 리뷰 목록 조회가 완료되었습니다.", PageResponse.from(response)));
     }
 }

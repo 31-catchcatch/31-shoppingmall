@@ -67,7 +67,13 @@ public enum ErrorCode {
 
     // ===== Refund (sell 추가) =====
     REFUND_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "REFUND-001", "현재 클레임 유형 또는 상태에서는 환불할 수 없습니다."),
-    REFUND_PROCESS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "REFUND-002", "환불 처리 중 오류가 발생했습니다.");
+    REFUND_PROCESS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "REFUND-002", "환불 처리 중 오류가 발생했습니다."),
+
+    // ===== PaymentMethod (일반 사용자 마이페이지 - 결제수단) =====
+    PAYMENT_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT-001", "등록되지 않은 결제 수단입니다."),
+
+    // ===== Notification =====
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "존재하지 않는 알림입니다.");
 
     private final HttpStatus status;
     private final String code;

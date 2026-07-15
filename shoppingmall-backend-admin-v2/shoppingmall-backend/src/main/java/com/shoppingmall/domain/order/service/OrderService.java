@@ -3,7 +3,9 @@ package com.shoppingmall.domain.order.service;
 import com.shoppingmall.domain.cart.repository.CartItemRepository;
 import com.shoppingmall.domain.order.dto.request.OrderCreateRequest;
 import com.shoppingmall.domain.order.dto.response.CheckoutResponse;
+import com.shoppingmall.domain.order.dto.response.OrderDeliveryResponse;
 import com.shoppingmall.domain.order.dto.response.OrderListResponse;
+import com.shoppingmall.domain.order.dto.response.OrderReceiptResponse;
 import com.shoppingmall.domain.order.dto.response.OrderResponse;
 import com.shoppingmall.domain.order.entity.DeliveryStatus;
 import com.shoppingmall.domain.order.entity.Order;
@@ -11,6 +13,8 @@ import com.shoppingmall.domain.order.entity.OrderDetail;
 import com.shoppingmall.domain.order.entity.OrderStatus;
 import com.shoppingmall.domain.order.repository.OrderDetailRepository;
 import com.shoppingmall.domain.order.repository.OrderRepository;
+import com.shoppingmall.domain.payment.entity.Payment;
+import com.shoppingmall.domain.payment.repository.PaymentRepository;
 import com.shoppingmall.domain.product.entity.Product;
 import com.shoppingmall.domain.product.entity.ProductOption;
 import com.shoppingmall.domain.product.repository.ProductRepository;
@@ -49,6 +53,7 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
+    private final PaymentRepository paymentRepository;
 
     /** 1. 주문서 진입 데이터 조회 (기본 배송지/보유 포인트) */
     public CheckoutResponse getCheckoutData(Long userId) {
@@ -173,6 +178,36 @@ public class OrderService {
         }
 
         detail.confirmPurchase();
+    }
+
+    /** 6. 배송 상태 조회 - 주문에 포함된 주문상세 항목별 배송 추적 정보 */
+    public List<OrderDeliveryResponse> getDeliveryInfo(Long userId, Long orderId) {
+        Order order = orderRepository.findByIdAndUser_Id(orderId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        return order.getOrderDetails().stream()
+                .map(OrderDeliveryResponse::from)
+                .toList();
+    }
+
+    /** 7. 영수증 조회 - PG 결제 내역(Payment) 기반 전자 영수증 */
+    public OrderReceiptResponse getReceipt(Long userId, Long orderId) {
+        Order order = orderRepository.findByIdAndUser_Id(orderId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        Payment payment = paymentRepository.findByOrder_Id(order.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+
+        return OrderReceiptResponse.from(order, payment);
+    }
+
+    /**
+     * 8. 거래명세서 조회 - 주문 단건 데이터(OrderResponse)를 그대로 재사용한다.
+     * API 명세서에도 "주문 단건 상세 조회 ... 하위 조회에서 공통으로 참조"라고 명시되어 있어
+     * 별도 DTO를 새로 만들지 않고 getMyOrder()와 동일한 데이터를 반환한다.
+     */
+    public OrderResponse getStatement(Long userId, Long orderId) {
+        return getMyOrder(userId, orderId);
     }
 
     private String generateOrderNumber() {

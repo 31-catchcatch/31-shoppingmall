@@ -19,8 +19,8 @@ public class ProductService {
     private final ProductRepository productRepository;
 
     @Transactional(readOnly = true)
-    public Page<ProductListResponse> getProducts(Long categoryId, String keyword, Pageable pageable) {
-        return productRepository.search(categoryId, keyword, pageable)
+    public Page<ProductListResponse> getProducts(Long categoryId, Long brandId, String keyword, Pageable pageable) {
+        return productRepository.search(categoryId, brandId, keyword, pageable)
                 .map(ProductListResponse::from);
     }
 

@@ -10,4 +10,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     // 특정 상품에 적재된 리뷰를 페이징하여 최신순으로 정렬 조회
     Page<Review> findAllByProductOrderByCreatedAtDesc(Product product, Pageable pageable);
+
+    // GET /api/v1/users/me/reviews - 내가 작성한 리뷰 목록 (최신순)
+    Page<Review> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 }

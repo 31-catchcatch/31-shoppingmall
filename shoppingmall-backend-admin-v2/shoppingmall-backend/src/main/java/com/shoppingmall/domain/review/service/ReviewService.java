@@ -6,6 +6,7 @@ import com.shoppingmall.domain.order.repository.OrderDetailRepository;
 import com.shoppingmall.domain.product.entity.Product;
 import com.shoppingmall.domain.product.repository.ProductRepository;
 import com.shoppingmall.domain.review.dto.request.ReviewCreateRequest;
+import com.shoppingmall.domain.review.dto.response.MyReviewResponse;
 import com.shoppingmall.domain.review.dto.response.ReviewResponse;
 import com.shoppingmall.domain.review.entity.Review;
 import com.shoppingmall.domain.review.repository.ReviewRepository;
@@ -70,5 +71,11 @@ public class ReviewService {
 
         Page<Review> reviews = reviewRepository.findAllByProductOrderByCreatedAtDesc(product, pageable);
         return reviews.map(ReviewResponse::from);
+    }
+
+    // 3. 내가 작성한 리뷰 목록 조회 (마이페이지)
+    public Page<MyReviewResponse> getMyReviews(Long userId, Pageable pageable) {
+        return reviewRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, pageable)
+                .map(MyReviewResponse::from);
     }
 }

@@ -20,9 +20,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             select p from Product p
             where p.deleted = false
               and (:categoryId is null or p.category.id = :categoryId)
+              and (:brandId is null or p.brand.id = :brandId)
               and (:keyword is null or p.name like concat('%', :keyword, '%'))
             """)
     Page<Product> search(@Param("categoryId") Long categoryId,
+                          @Param("brandId") Long brandId,
                           @Param("keyword") String keyword,
                           Pageable pageable);
 
