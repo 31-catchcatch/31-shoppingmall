@@ -1,0 +1,15 @@
+# 사용법:
+#   1) 이 파일을 application-local.yml 로 복사 (그 파일은 .gitignore 처리되어 있어 커밋되지 않음)
+#   2) IntelliJ 실행 설정 또는 실행 커맨드에 -Dspring.profiles.active=local 추가
+#      (또는 환경변수 SPRING_PROFILES_ACTIVE=local)
+#
+# infra 가이드 기준 db-01 = 192.168.10.10, appuser 계정 사용 (root 계정은 개발용으로도 쓰지 않는 것을 권장)
+
+spring:
+  datasource:
+    url: jdbc:mysql://192.168.10.10:3306/appdb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: appuser
+    password: AppUserPass!2026   # 실제 값은 절대 git에 올리지 말 것
+
+jwt:
+  secret: local-dev-only-secret-please-change-this-in-real-env-1234567890
