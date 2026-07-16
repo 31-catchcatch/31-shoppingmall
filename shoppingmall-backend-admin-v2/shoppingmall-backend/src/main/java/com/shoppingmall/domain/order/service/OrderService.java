@@ -22,6 +22,8 @@ import com.shoppingmall.domain.payment.repository.PaymentRepository;
 import com.shoppingmall.domain.product.entity.Product;
 import com.shoppingmall.domain.product.entity.ProductOption;
 import com.shoppingmall.domain.product.repository.ProductRepository;
+import com.shoppingmall.domain.settlement.entity.Settlement;
+import com.shoppingmall.domain.settlement.repository.SettlementRepository;
 import com.shoppingmall.domain.user.entity.Address;
 import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.domain.user.repository.AddressRepository;
@@ -61,6 +63,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
     private final UserCouponRepository userCouponRepository;
+    private final SettlementRepository settlementRepository;
 
     /** 1. 주문서 진입 데이터 조회 (기본 배송지/보유 포인트) */
     public CheckoutResponse getCheckoutData(Long userId) {
@@ -216,6 +219,18 @@ public class OrderService {
         }
 
         detail.confirmPurchase();
+
+        // 구매확정 시점에 정산 데이터를 자동 생성한다 (이전엔 이 생성 로직이 없어 정산 내역이 항상 비어있었음).
+        // 같은 주문상세로 중복 생성되지 않도록 방어(existsByOrderDetail_Id) - confirmPurchase는 원래
+        // DELIVERED 상태에서만 호출 가능해 재호출 여지가 거의 없지만 안전하게 체크한다.
+        if (!settlementRepository.existsByOrderDetail_Id(detail.getId())) {
+            settlementRepository.save(Settlement.builder()
+                    .seller(detail.getProduct().getSeller())
+                    .orderDetail(detail)
+                    .saleAmount(detail.getTotalPrice())
+                    .feeRate(Settlement.DEFAULT_FEE_RATE)
+                    .build());
+        }
     }
 
     /** 6. 배송 상태 조회 - 주문에 포함된 주문상세 항목별 배송 추적 정보 */

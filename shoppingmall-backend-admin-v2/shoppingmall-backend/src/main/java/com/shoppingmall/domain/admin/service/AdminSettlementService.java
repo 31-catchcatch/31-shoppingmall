@@ -1,8 +1,8 @@
 package com.shoppingmall.domain.admin.service;
 
 import com.shoppingmall.domain.admin.dto.response.AdminSettlementResponse;
-import com.shoppingmall.domain.order.entity.DeliveryStatus;
-import com.shoppingmall.domain.order.repository.OrderDetailRepository;
+import com.shoppingmall.domain.settlement.entity.SettlementStatus;
+import com.shoppingmall.domain.settlement.repository.SettlementRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -10,25 +10,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * API 명세서 "관리자 - 정산 - 플랫폼 정산 관리 대시보드" (GET /admin/settlements).
  *
- * SellerSettlementService와 같은 방식(별도 Settlement 테이블 없이 구매확정 주문 데이터로 실시간 집계)을
- * 그대로 따르되, 판매자 한 명이 아니라 플랫폼 전체를 대상으로 계산한다.
- * 수수료율도 SellerSettlementService와 동일하게 10%로 맞춰뒀다 (나중에 설정값으로 빼도 됨).
+ * settlements 테이블(구매확정 시점에 OrderService가 자동 생성)을 플랫폼 전체 기준으로 집계한다.
+ * PATCH /admin/settlements/{settlementId}/complete 로 개별 정산 건을 완료 처리할 수 있다.
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminSettlementService {
 
-    private static final BigDecimal COMMISSION_RATE = new BigDecimal("0.10");
-
-    private final OrderDetailRepository orderDetailRepository;
+    private final SettlementRepository settlementRepository;
 
     public AdminSettlementResponse getSettlements(LocalDate startDate, LocalDate endDate) {
         LocalDate resolvedStart = startDate == null ? LocalDate.now().withDayOfMonth(1) : startDate;
@@ -41,14 +37,25 @@ public class AdminSettlementService {
         LocalDateTime startDateTime = resolvedStart.atStartOfDay();
         LocalDateTime endDateTime = resolvedEnd.plusDays(1).atStartOfDay();
 
-        Long confirmedSalesValue = orderDetailRepository.sumTotalPriceByDeliveryStatusAndPeriod(
-                DeliveryStatus.CONFIRMED, startDateTime, endDateTime);
-
-        BigDecimal totalSalesAmount = BigDecimal.valueOf(confirmedSalesValue == null ? 0L : confirmedSalesValue);
-        BigDecimal totalCommissionAmount = totalSalesAmount.multiply(COMMISSION_RATE).setScale(0, RoundingMode.DOWN);
-        BigDecimal totalPayoutAmount = totalSalesAmount.subtract(totalCommissionAmount);
+        Long totalSalesAmount = settlementRepository.sumSaleAmountAll(startDateTime, endDateTime);
+        Long totalCommissionAmount = settlementRepository.sumFeeAmountAll(startDateTime, endDateTime);
+        Long totalPayoutAmount = settlementRepository.sumSettlementAmountAllByStatus(
+                SettlementStatus.PENDING, startDateTime, endDateTime)
+                + settlementRepository.sumSettlementAmountAllByStatus(
+                SettlementStatus.COMPLETED, startDateTime, endDateTime);
 
         return new AdminSettlementResponse(
-                resolvedStart, resolvedEnd, totalSalesAmount, totalCommissionAmount, totalPayoutAmount);
+                resolvedStart, resolvedEnd,
+                BigDecimal.valueOf(totalSalesAmount),
+                BigDecimal.valueOf(totalCommissionAmount),
+                BigDecimal.valueOf(totalPayoutAmount));
+    }
+
+    /** PATCH /admin/settlements/{settlementId}/complete - 관리자가 실제 지급 처리 완료를 기록 */
+    @Transactional
+    public void completeSettlement(Long settlementId) {
+        var settlement = settlementRepository.findById(settlementId)
+                .orElseThrow(() -> new CustomException(ErrorCode.SETTLEMENT_NOT_FOUND));
+        settlement.complete();
     }
 }
