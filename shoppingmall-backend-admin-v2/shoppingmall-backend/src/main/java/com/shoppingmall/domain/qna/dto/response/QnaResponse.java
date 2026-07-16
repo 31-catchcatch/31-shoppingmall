@@ -37,7 +37,7 @@ public record QnaResponse(
                 qna.isSecret(),
                 qna.isAnswered(),
                 qna.getCreatedAt(),
-                qna.getAnswer() == null ? null : QnaAnswerResponse.from(qna.getAnswer())
+                qna.isAnswered() ? QnaAnswerResponse.from(qna) : null
         );
     }
 
@@ -48,9 +48,9 @@ public record QnaResponse(
 
         String displayTitle = shouldMask ? "비밀글입니다." : qna.getTitle();
         String displayContent = shouldMask ? "작성자와 판매자만 볼 수 있습니다." : qna.getContent();
-        QnaAnswerResponse displayAnswer = (qna.getAnswer() == null)
+        QnaAnswerResponse displayAnswer = !qna.isAnswered()
                 ? null
-                : (shouldMask ? null : QnaAnswerResponse.from(qna.getAnswer()));
+                : (shouldMask ? null : QnaAnswerResponse.from(qna));
 
         return new QnaResponse(
                 qna.getId(),

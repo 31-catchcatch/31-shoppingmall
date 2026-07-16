@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 상품 문의 Entity
  *
@@ -91,17 +93,33 @@ public class Qna extends BaseTimeEntity {
     private boolean deleted;
 
     /**
-     * 질문 하나당 판매자 답변 하나를 가진다.
-     *
-     * QnaAnswer가 외래키를 관리하므로 mappedBy를 사용한다.
+     * 판매자 답변 내용 (DB 정의서 병합: qna_answers.content → qna.answer)
      */
-    @OneToOne(
-            mappedBy = "qna",
-            fetch = FetchType.LAZY,
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
+    @Lob
+    @Column(
+            name = "answer",
+            columnDefinition = "TEXT"
     )
-    private QnaAnswer answer;
+    private String answerContent;
+
+    /**
+     * 답변자 (판매자 또는 관리자)
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "answerer_id")
+    private User answerer;
+
+    /**
+     * 답변 최초 등록일시 (DB 정의서 병합: qna_answers.created_at → qna.answered_at)
+     */
+    @Column(name = "answered_at")
+    private LocalDateTime answeredAt;
+
+    /**
+     * 답변 수정일시 (DB 정의서 병합: qna_answers.updated_at → qna.answer_updated_at)
+     */
+    @Column(name = "answer_updated_at")
+    private LocalDateTime answerUpdatedAt;
 
     @Builder
     public Qna(
@@ -121,14 +139,21 @@ public class Qna extends BaseTimeEntity {
     }
 
     /**
-     * 판매자 답변을 질문과 연결한다.
+     * 판매자 답변을 등록하거나 기존 답변을 수정한다.
+     * 최초 등록이면 answered_at 을, 이후 수정이면 answer_updated_at 을 갱신한다.
      */
-    public void registerAnswer(QnaAnswer answer) {
-        this.answer = answer;
-        this.answered = true;
+    public void registerAnswer(String content, User answerer) {
+        LocalDateTime now = LocalDateTime.now();
 
-        // 양방향 관계를 함께 설정한다.
-        answer.assignQna(this);
+        if (this.answerContent == null) {
+            this.answeredAt = now;
+            this.answered = true;
+        } else {
+            this.answerUpdatedAt = now;
+        }
+
+        this.answerContent = content;
+        this.answerer = answerer;
     }
 
     /**
