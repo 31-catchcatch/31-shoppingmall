@@ -148,6 +148,20 @@ public class OrderDetail extends BaseTimeEntity {
         this.deliveryStatus = DeliveryStatus.CANCELED;
     }
 
+    /**
+     * 사용자가 환불(반품)을 신청하면 배송 상태를 반품 신청 상태로 전환한다.
+     */
+    public void requestReturn() {
+        this.deliveryStatus = DeliveryStatus.RETURN_REQUESTED;
+    }
+
+    /**
+     * 사용자가 교환을 신청하면 배송 상태를 교환 신청 상태로 전환한다.
+     */
+    public void requestExchange() {
+        this.deliveryStatus = DeliveryStatus.EXCHANGE_REQUESTED;
+    }
+
     public boolean canRegisterDelivery() {
         return deliveryStatus == DeliveryStatus.PAYMENT_COMPLETED
                 || deliveryStatus == DeliveryStatus.PREPARING;
