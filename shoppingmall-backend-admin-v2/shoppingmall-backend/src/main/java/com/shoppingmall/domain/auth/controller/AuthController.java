@@ -64,16 +64,8 @@ public class AuthController {
     }
 
     // ===== 판매자 =====
-    // 판매자 회원가입은 "담당자 계정" 하나만 만드는 단계라 일반 회원가입과 동일 로직을 그대로 씀.
-    // 사업자 서류 제출/심사는 별도 단계인 POST /api/v1/seller/applications 에서 진행한다
-    // (SellerApplicationController 참고). 로그인은 위 설명대로 SellerAuthController 담당.
-
-    @PostMapping("/seller/signup")
-    public ResponseEntity<ApiResponse<SignupResponse>> sellerSignup(@Valid @RequestBody SignupRequest request) {
-        SignupResponse response = authService.signup(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("회원가입이 완료되었습니다. 입점 신청은 /api/v1/seller/applications 에서 진행해주세요.", response));
-    }
+    // 판매자 회원가입(/seller/signup)과 로그인(/seller/login)은 모두
+    // domain.seller.controller.SellerAuthController 가 전담한다 (위 클래스 주석 참고).
 
     @PostMapping("/seller/verify")
     public ResponseEntity<ApiResponse<VerifyResponse>> verifySeller(@Valid @RequestBody VerifyRequest request) {
