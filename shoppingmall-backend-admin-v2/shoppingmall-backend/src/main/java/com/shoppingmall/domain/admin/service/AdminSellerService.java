@@ -9,7 +9,6 @@ import com.shoppingmall.domain.seller.entity.SellerApplicationStatus;
 import com.shoppingmall.domain.seller.entity.SellerStatus;
 import com.shoppingmall.domain.seller.repository.SellerApplicationRepository;
 import com.shoppingmall.domain.seller.repository.SellerRepository;
-import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -18,12 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * API 명세서 "관리자 - 운영" 중 판매자/입점 관련 4개 API 담당.
- * - GET  /admin/sellers/applications
- * - POST /admin/sellers/applications/{appId}/status  (승인/반려)
- * - PUT  /admin/sellers/{sellerId}/status            (정상/정지/폐점)
- */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -32,7 +25,6 @@ public class AdminSellerService {
     private final SellerApplicationRepository sellerApplicationRepository;
     private final SellerRepository sellerRepository;
 
-    /** 대기 중인(PENDING) 입점 신청서 목록. 필요하면 다른 상태도 조회할 수 있게 status로 필터링. */
     public List<SellerApplicationResponse> getApplications(SellerApplicationStatus status) {
         SellerApplicationStatus target = status == null ? SellerApplicationStatus.PENDING : status;
         return sellerApplicationRepository.findAllByStatusOrderByCreatedAtAsc(target).stream()
@@ -42,8 +34,9 @@ public class AdminSellerService {
 
     /**
      * 입점 신청 승인/반려.
-     * 승인 시: 신청서 상태 변경 + 실제 Seller 계정 생성 + 신청자 User.role을 SELLER로 승격.
-     * (이 연결 로직이 이전까지 빠져있던 부분 - 관리자 도메인 작업하면서 채워 넣음)
+     * 승인 시: 신청서 상태 변경 + 실제 Seller 계정 생성.
+     * (User.role 은 이제 SellerAuthService.signup() 가입 시점에 이미 SELLER로 저장되므로
+     *  여기서 별도로 승격시키지 않는다.)
      */
     @Transactional
     public SellerApplicationResponse reviewApplication(Long appId, ReviewDecisionRequest request) {
@@ -57,17 +50,14 @@ public class AdminSellerService {
         if (request.decision() == ReviewDecisionRequest.Decision.APPROVE) {
             application.approve();
 
-            User applicant = application.getUser();
-            applicant.promoteToSeller();
-
             Seller seller = Seller.builder()
-                    .user(applicant)
+                    .user(application.getUser())
                     .businessName(application.getBusinessName())
                     .businessRegistrationNumber(application.getBusinessRegistrationNumber())
                     .representativeName(application.getRepresentativeName())
                     .contactNumber(application.getContactNumber())
                     .businessAddress(application.getBusinessAddress())
-                    .build(); // status 기본값 ACTIVE (Seller.@Builder.Default)
+                    .build();
 
             sellerRepository.save(seller);
         } else {
@@ -77,7 +67,6 @@ public class AdminSellerService {
         return SellerApplicationResponse.from(application);
     }
 
-    /** 승인된 판매자의 운영 상태 변경 (정상/일시정지/자진폐점/강제폐점) */
     @Transactional
     public void updateSellerStatus(Long sellerId, SellerStatusUpdateRequest request) {
         Seller seller = sellerRepository.findById(sellerId)
