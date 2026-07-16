@@ -49,6 +49,7 @@ public enum ErrorCode {
     COUPON_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "SELLER-011", "쿠폰 요청 정보를 찾을 수 없습니다."),
     INVALID_SELLER_STATUS(HttpStatus.BAD_REQUEST, "SELLER-012", "판매자 상태가 올바르지 않습니다."),
     QNA_ACCESS_DENIED(HttpStatus.FORBIDDEN, "SELLER-013", "해당 문의에 대한 판매자 권한이 없습니다."),
+    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "INQUIRY-001", "존재하지 않는 문의입니다."),
     // sell 원본에서 INVALID_SEARCH_PERIOD 가 SELLER-013과 중복 사용되고 있어서 SELLER-014로 재배치
     INVALID_SEARCH_PERIOD(HttpStatus.BAD_REQUEST, "SELLER-014", "조회 시작일은 종료일보다 이후일 수 없습니다."),
 
