@@ -64,6 +64,12 @@ public class User extends BaseTimeEntity {
         this.password = encodedPassword;
     }
 
+    public void updateProfile(String name, String email, String phoneNumber) {
+        this.name = name;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+    }
+
     /** 판매자 마이페이지(PUT /seller/me) 등에서 이메일만 변경할 때 사용 */
     public void changeEmail(String email) {
         this.email = email;
