@@ -31,6 +31,25 @@ public class AccountRecoveryService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    /** POST /api/v1/auth/find-username - 프론트 형식 { name, email } 로 아이디 찾기 */
+    @Transactional(readOnly = true)
+    public FindAccountResponse findUsername(com.shoppingmall.domain.auth.dto.request.FindUsernameRequest request) {
+        User user = userRepository.findByNameAndEmailAndDeletedFalse(request.name(), request.email())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return FindAccountResponse.idFound(mask(user.getUsername()));
+    }
+
+    /**
+     * POST /api/v1/auth/reset-password - 사용자가 새 비밀번호를 직접 지정하는 방식 (프론트 화면 흐름 대응).
+     * 기존 find-account(임시 비밀번호 메일 발송)와 달리, 이메일 인증을 통과한 화면에서 바로 새 비밀번호를 설정한다.
+     */
+    @Transactional
+    public void resetPasswordDirect(com.shoppingmall.domain.auth.dto.request.ResetPasswordRequest request) {
+        User user = userRepository.findByUsernameAndEmailAndDeletedFalse(request.username(), request.email())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        user.changePassword(passwordEncoder.encode(request.newPassword()));
+    }
+
     @Transactional(readOnly = true)
     public FindAccountResponse findUsername(FindAccountRequest request) {
         User user = userRepository.findByNameAndEmailAndDeletedFalse(request.name(), request.email())

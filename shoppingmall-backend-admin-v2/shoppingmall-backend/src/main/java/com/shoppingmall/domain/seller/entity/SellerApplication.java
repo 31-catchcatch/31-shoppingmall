@@ -154,4 +154,15 @@ public class SellerApplication {
     public void cancel() {
         this.status = SellerApplicationStatus.CANCELED;
     }
+
+    /** PUT /api/v1/seller/me - 판매자 마이페이지에서 수정 가능한 사업자 정보 갱신 */
+    public void updateProfile(String businessName, String representativeName,
+                               String contactNumber, String businessAddress) {
+        this.businessName = businessName;
+        this.representativeName = representativeName;
+        this.contactNumber = contactNumber;
+        if (businessAddress != null && !businessAddress.isBlank()) {
+            this.businessAddress = businessAddress;
+        }
+    }
 }

@@ -91,6 +91,21 @@ public class AuthController {
 
     // ===== 공용 =====
 
+    /** 프론트(find-account.js) 경로에 맞춘 아이디 찾기. 기존 /user/find-account(type=ID)와 동일 로직 */
+    @PostMapping("/find-username")
+    public ResponseEntity<ApiResponse<FindAccountResponse>> findUsername(
+            @Valid @RequestBody FindUsernameRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(accountRecoveryService.findUsername(request)));
+    }
+
+    /** 프론트(find-account.js) 경로에 맞춘 비밀번호 재설정. 이메일 인증 통과 후 새 비밀번호를 직접 지정 */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        accountRecoveryService.resetPasswordDirect(request);
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.", null));
+    }
+
     @PostMapping("/check-username")
     public ResponseEntity<ApiResponse<Boolean>> checkUsername(@RequestParam String username) {
         return ResponseEntity.ok(ApiResponse.success(authService.isUsernameAvailable(username)));

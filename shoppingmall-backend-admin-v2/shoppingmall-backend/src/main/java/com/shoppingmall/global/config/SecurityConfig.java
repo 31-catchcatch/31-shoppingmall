@@ -58,6 +58,9 @@ public class SecurityConfig {
                                 "/api/v1/banners"
                         ).permitAll()
 
+                        // 브랜드 목록은 비로그인 허용, 좋아요 토글(POST /brands/{id}/like)은 로그인 필요
+                        .requestMatchers(HttpMethod.GET, "/api/v1/brands").permitAll()
+
                         // QnA는 GET(목록조회)만 비로그인 허용, POST(등록)는 로그인 필요
                         // -> 같은 경로를 GET/POST 둘 다 쓰므로 메서드 단위로 분리해야 함
                         .requestMatchers(HttpMethod.GET, "/api/v1/products/*/qna").permitAll()

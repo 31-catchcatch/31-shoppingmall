@@ -73,7 +73,16 @@ public enum ErrorCode {
     PAYMENT_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT-001", "등록되지 않은 결제 수단입니다."),
 
     // ===== Notification =====
-    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "존재하지 않는 알림입니다.");
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "존재하지 않는 알림입니다."),
+
+    // ===== Review =====
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW-001", "존재하지 않거나 접근 권한이 없는 리뷰입니다."),
+
+    // ===== Coupon (사용자) =====
+    COUPON_NOT_AVAILABLE(HttpStatus.BAD_REQUEST, "COUPON-101", "사용할 수 없는 쿠폰입니다."),
+    COUPON_MINIMUM_NOT_MET(HttpStatus.BAD_REQUEST, "COUPON-102", "쿠폰 적용 최소 주문 금액을 충족하지 않습니다."),
+    COUPON_ALREADY_CLAIMED(HttpStatus.CONFLICT, "COUPON-103", "이미 발급받은 쿠폰입니다."),
+    COUPON_SOLD_OUT(HttpStatus.CONFLICT, "COUPON-104", "쿠폰 발급 수량이 모두 소진되었습니다.");
 
     private final HttpStatus status;
     private final String code;

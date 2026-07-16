@@ -56,4 +56,15 @@ public class Address extends BaseTimeEntity {
     public void updateDefaultStatus(boolean isDefault) {
         this.defaultAddress = isDefault;
     }
+
+    /** PUT /users/me/addresses/{addressId} - 배송지 정보 전체 수정 */
+    public void update(String addressName, String recipientName, String recipientPhone,
+                       String baseAddress, String detailAddress, boolean defaultAddress) {
+        this.addressName = addressName;
+        this.recipientName = recipientName;
+        this.recipientPhone = recipientPhone;
+        this.baseAddress = baseAddress;
+        this.detailAddress = detailAddress;
+        this.defaultAddress = defaultAddress;
+    }
 }

@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.seller.controller;
 
+import com.shoppingmall.domain.auth.dto.request.RefreshRequest;
+import com.shoppingmall.domain.auth.service.AuthService;
 import com.shoppingmall.domain.seller.dto.request.SellerLoginRequest;
 import com.shoppingmall.domain.seller.dto.response.SellerLoginResponse;
 import com.shoppingmall.domain.seller.service.SellerAuthService;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
  *
  * 담당 API
  * POST /api/v1/auth/seller/login
+ * POST /api/v1/auth/seller/logout  (API 명세서 v9 신설분 - refresh token 무효화, 일반 사용자 로그아웃과 동일 로직)
  */
 @RestController
 @RequestMapping("/api/v1/auth/seller")
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class SellerAuthController {
 
     private final SellerAuthService sellerAuthService;
+    private final AuthService authService;
 
     /**
      * 판매자 로그인
@@ -42,5 +46,12 @@ public class SellerAuthController {
         return ResponseEntity.ok(
                 ApiResponse.success(response)
         );
+    }
+
+    /** POST /api/v1/auth/seller/logout - 판매자 세션 및 토큰 무효화 (멱등) */
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request.refreshToken());
+        return ResponseEntity.ok(ApiResponse.success("로그아웃되었습니다.", null));
     }
 }

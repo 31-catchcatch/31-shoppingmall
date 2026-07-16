@@ -8,8 +8,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
+
+    /** 주문 시 쿠폰 적용 - 본인이 보유한 미사용 쿠폰인지 검증하며 조회 */
+    Optional<UserCoupon> findByUser_IdAndCoupon_IdAndUsedFalse(Long userId, Long couponId);
+
+    /** 쿠폰 발급(claim) 시 중복 발급 방지 */
+    boolean existsByUser_IdAndCoupon_Id(Long userId, Long couponId);
 
     /**
      * GET /api/v1/users/me/coupons - 본인이 보유한 "사용 가능한" 쿠폰만 조회.

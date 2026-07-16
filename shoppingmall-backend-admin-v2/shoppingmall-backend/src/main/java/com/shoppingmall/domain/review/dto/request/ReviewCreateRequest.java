@@ -11,7 +11,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ReviewCreateRequest {
 
-    @NotNull(message = "대상 상품 ID는 필수입니다.")
+    /**
+     * 대상 상품 ID.
+     * - POST /reviews : 바디로 직접 받음
+     * - POST /products/{productId}/reviews : 경로 값을 컨트롤러가 주입 (바디 생략 가능)
+     * 두 경로를 모두 지원해야 해서 @NotNull은 제거하고 서비스에서 null 검증한다.
+     */
     private Long productId;
 
     @NotNull(message = "주문 세부 내역(OrderDetail) ID는 필수입니다.")
@@ -25,4 +30,9 @@ public class ReviewCreateRequest {
     private String content;
 
     private String imageUrl; // 포토 리뷰 이미지 (선택)
+
+    /** 경로 기반 등록(POST /products/{id}/reviews)에서 경로 값을 우선 적용하기 위한 주입 메서드 */
+    public void applyProductId(Long productId) {
+        this.productId = productId;
+    }
 }

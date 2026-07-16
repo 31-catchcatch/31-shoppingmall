@@ -6,6 +6,7 @@ import com.shoppingmall.domain.order.repository.OrderDetailRepository;
 import com.shoppingmall.domain.product.entity.Product;
 import com.shoppingmall.domain.product.repository.ProductRepository;
 import com.shoppingmall.domain.review.dto.request.ReviewCreateRequest;
+import com.shoppingmall.domain.review.dto.request.ReviewUpdateRequest;
 import com.shoppingmall.domain.review.dto.response.MyReviewResponse;
 import com.shoppingmall.domain.review.dto.response.ReviewResponse;
 import com.shoppingmall.domain.review.entity.Review;
@@ -33,6 +34,10 @@ public class ReviewService {
     // 1. 리뷰 작성 기능
     @Transactional
     public void createReview(Long userId, ReviewCreateRequest request) {
+        if (request.getProductId() == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT); // "대상 상품 ID는 필수입니다."
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -69,13 +74,29 @@ public class ReviewService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
-        Page<Review> reviews = reviewRepository.findAllByProductOrderByCreatedAtDesc(product, pageable);
+        Page<Review> reviews = reviewRepository.findAllByProductAndDeletedFalseOrderByCreatedAtDesc(product, pageable);
         return reviews.map(ReviewResponse::from);
     }
 
     // 3. 내가 작성한 리뷰 목록 조회 (마이페이지)
     public Page<MyReviewResponse> getMyReviews(Long userId, Pageable pageable) {
-        return reviewRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, pageable)
+        return reviewRepository.findAllByUser_IdAndDeletedFalseOrderByCreatedAtDesc(userId, pageable)
                 .map(MyReviewResponse::from);
+    }
+
+    // 4. 리뷰 수정 - 본인 작성 리뷰만 가능 (프론트 my-reviews 화면 대응)
+    @Transactional
+    public void updateReview(Long userId, Long reviewId, ReviewUpdateRequest request) {
+        Review review = reviewRepository.findByIdAndUser_IdAndDeletedFalse(reviewId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
+        review.update(request.getRating(), request.getContent(), request.getImageUrl());
+    }
+
+    // 5. 리뷰 삭제 (논리 삭제) - 본인 작성 리뷰만 가능
+    @Transactional
+    public void deleteReview(Long userId, Long reviewId) {
+        Review review = reviewRepository.findByIdAndUser_IdAndDeletedFalse(reviewId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
+        review.delete();
     }
 }

@@ -64,6 +64,11 @@ public class User extends BaseTimeEntity {
         this.password = encodedPassword;
     }
 
+    /** 판매자 마이페이지(PUT /seller/me) 등에서 이메일만 변경할 때 사용 */
+    public void changeEmail(String email) {
+        this.email = email;
+    }
+
     public void softDelete() {
         this.deleted = true;
     }

@@ -1,6 +1,10 @@
 package com.shoppingmall.domain.order.service;
 
 import com.shoppingmall.domain.cart.repository.CartItemRepository;
+import com.shoppingmall.domain.coupon.entity.Coupon;
+import com.shoppingmall.domain.coupon.entity.CouponDiscountType;
+import com.shoppingmall.domain.coupon.entity.UserCoupon;
+import com.shoppingmall.domain.coupon.repository.UserCouponRepository;
 import com.shoppingmall.domain.order.dto.request.OrderCreateRequest;
 import com.shoppingmall.domain.order.dto.response.CheckoutResponse;
 import com.shoppingmall.domain.order.dto.response.OrderDeliveryResponse;
@@ -30,6 +34,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -54,6 +60,7 @@ public class OrderService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
+    private final UserCouponRepository userCouponRepository;
 
     /** 1. 주문서 진입 데이터 조회 (기본 배송지/보유 포인트) */
     public CheckoutResponse getCheckoutData(Long userId) {
@@ -120,7 +127,38 @@ public class OrderService {
                     .ifPresent(cartItemRepository::delete);
         }
 
-        int couponDiscountAmount = 0; // TODO: coupon 도메인 연동 후 실제 할인액 반영
+        // 쿠폰 할인 적용: couponId가 오면 보유(UserCoupon) 검증 후 할인액 계산 및 사용 처리
+        int couponDiscountAmount = 0;
+        if (request.couponId() != null) {
+            UserCoupon userCoupon = userCouponRepository
+                    .findByUser_IdAndCoupon_IdAndUsedFalse(userId, request.couponId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.COUPON_NOT_AVAILABLE));
+
+            Coupon coupon = userCoupon.getCoupon();
+            LocalDateTime now = LocalDateTime.now();
+            if (!coupon.isActive() || now.isBefore(coupon.getValidFrom()) || now.isAfter(coupon.getValidUntil())) {
+                throw new CustomException(ErrorCode.COUPON_NOT_AVAILABLE);
+            }
+            if (BigDecimal.valueOf(totalProductAmount).compareTo(coupon.getMinimumOrderAmount()) < 0) {
+                throw new CustomException(ErrorCode.COUPON_MINIMUM_NOT_MET);
+            }
+
+            BigDecimal discount;
+            if (coupon.getDiscountType() == CouponDiscountType.FIXED_AMOUNT) {
+                discount = coupon.getDiscountValue();
+            } else { // PERCENTAGE
+                discount = BigDecimal.valueOf(totalProductAmount)
+                        .multiply(coupon.getDiscountValue())
+                        .divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN);
+                if (coupon.getMaximumDiscountAmount() != null
+                        && discount.compareTo(coupon.getMaximumDiscountAmount()) > 0) {
+                    discount = coupon.getMaximumDiscountAmount();
+                }
+            }
+            couponDiscountAmount = Math.min(discount.intValue(), totalProductAmount);
+            userCoupon.markAsUsed();
+        }
+
         int finalPaymentAmount = totalProductAmount - couponDiscountAmount - usePoint;
         if (finalPaymentAmount < 0) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
