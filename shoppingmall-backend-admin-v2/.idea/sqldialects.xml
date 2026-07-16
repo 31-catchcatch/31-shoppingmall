@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SqlDialectMappings">
-    <file url="file://$PROJECT_DIR$/shoppingmall-backend/src/main/resources/db/migration/V9__general_user_api_backfill.sql" dialect="GenericSQL" />
-  </component>
-</project>
