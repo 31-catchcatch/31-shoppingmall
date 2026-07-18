@@ -42,7 +42,7 @@ public class Inquiry extends BaseTimeEntity {
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20)")
     private InquiryStatus status;
 
     @Column(columnDefinition = "TEXT")

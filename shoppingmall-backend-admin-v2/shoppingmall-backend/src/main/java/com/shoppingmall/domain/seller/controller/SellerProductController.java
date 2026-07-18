@@ -1,7 +1,9 @@
 package com.shoppingmall.domain.seller.controller;
 
 import com.shoppingmall.domain.seller.dto.request.SellerProductCreateRequest;
+import com.shoppingmall.domain.seller.dto.request.SellerProductStatusUpdateRequest;
 import com.shoppingmall.domain.seller.dto.request.SellerProductUpdateRequest;
+import com.shoppingmall.domain.seller.dto.response.SellerProductDetailResponse;
 import com.shoppingmall.domain.seller.dto.response.SellerProductListResponse;
 import com.shoppingmall.domain.seller.dto.response.SellerProductResponse;
 import com.shoppingmall.domain.seller.service.SellerProductService;
@@ -33,13 +35,27 @@ public class SellerProductController {
     @GetMapping
     public ResponseEntity<ApiResponse<SellerProductListResponse>> getMyProducts(
             @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(defaultValue = "ALL") String filter,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         Long userId = userDetails.getUser().getId();
 
         SellerProductListResponse response =
-                sellerProductService.getMyProducts(userId, page, size);
+                sellerProductService.getMyProducts(userId, filter, page, size);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{productId}")
+    public ResponseEntity<ApiResponse<SellerProductDetailResponse>> getProductDetail(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long productId
+    ) {
+        Long userId = userDetails.getUser().getId();
+
+        SellerProductDetailResponse response =
+                sellerProductService.getProductDetail(userId, productId);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -82,5 +98,19 @@ public class SellerProductController {
         sellerProductService.deleteProduct(userId, productId);
 
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PatchMapping("/{productId}/status")
+    public ResponseEntity<ApiResponse<SellerProductResponse>> updateProductStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long productId,
+            @Valid @RequestBody SellerProductStatusUpdateRequest request
+    ) {
+        Long userId = userDetails.getUser().getId();
+
+        SellerProductResponse response =
+                sellerProductService.updateProductStatus(userId, productId, request.status());
+
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

@@ -39,10 +39,15 @@ public class ProductLikeService {
 
         return productLikeRepository.findByUserAndProduct(user, product)
                 .map(existing -> {
+                    // 취소는 판매중지 상품이어도 허용 (위시리스트 정리 가능해야 함)
                     productLikeRepository.delete(existing);
                     return new ProductLikeToggleResponse(false);
                 })
                 .orElseGet(() -> {
+                    // 신규 좋아요 등록은 판매중지 상품에 대해 막는다.
+                    if (!product.isOnSale()) {
+                        throw new CustomException(ErrorCode.PRODUCT_NOT_ON_SALE);
+                    }
                     productLikeRepository.save(ProductLike.builder().user(user).product(product).build());
                     return new ProductLikeToggleResponse(true);
                 });

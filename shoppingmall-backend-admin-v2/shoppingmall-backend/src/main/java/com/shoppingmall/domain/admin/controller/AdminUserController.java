@@ -1,6 +1,7 @@
 package com.shoppingmall.domain.admin.controller;
 
 import com.shoppingmall.domain.admin.dto.request.PointAdjustRequest;
+import com.shoppingmall.domain.admin.dto.request.UserStatusUpdateRequest;
 import com.shoppingmall.domain.admin.dto.response.AdminUserResponse;
 import com.shoppingmall.domain.admin.service.AdminUserService;
 import com.shoppingmall.domain.point.dto.response.PointHistoryResponse;
@@ -44,5 +45,15 @@ public class AdminUserController {
             @PathVariable Long userId,
             @Valid @RequestBody PointAdjustRequest request) {
         return ResponseEntity.ok(ApiResponse.success(adminUserService.adjustUserPoint(userId, request)));
+    }
+
+    /** PATCH /admin/users/{userId}/status - 계정 정지/정지해제 */
+    @PatchMapping("/{userId}/status")
+    public ResponseEntity<ApiResponse<Void>> updateStatus(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserStatusUpdateRequest request) {
+        adminUserService.updateUserStatus(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(
+                request.suspended() ? "계정이 정지되었습니다." : "정지가 해제되었습니다.", null));
     }
 }

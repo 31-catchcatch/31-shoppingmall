@@ -1,11 +1,18 @@
 package com.shoppingmall.domain.seller.service;
 
+import com.shoppingmall.domain.product.entity.Brand;
 import com.shoppingmall.domain.product.entity.Category;
 import com.shoppingmall.domain.product.entity.Product;
+import com.shoppingmall.domain.product.entity.ProductImage;
+import com.shoppingmall.domain.product.entity.ProductOption;
+import com.shoppingmall.domain.product.entity.ProductStatus;
+import com.shoppingmall.domain.product.repository.BrandRepository;
 import com.shoppingmall.domain.product.repository.CategoryRepository;
 import com.shoppingmall.domain.product.repository.ProductRepository;
+import com.shoppingmall.domain.seller.dto.request.ProductOptionRequest;
 import com.shoppingmall.domain.seller.dto.request.SellerProductCreateRequest;
 import com.shoppingmall.domain.seller.dto.request.SellerProductUpdateRequest;
+import com.shoppingmall.domain.seller.dto.response.SellerProductDetailResponse;
 import com.shoppingmall.domain.seller.dto.response.SellerProductListResponse;
 import com.shoppingmall.domain.seller.dto.response.SellerProductResponse;
 import com.shoppingmall.domain.seller.entity.SellerApplication;
@@ -19,6 +26,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 판매자 상품 관리 서비스
@@ -36,6 +46,7 @@ public class SellerProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final BrandRepository brandRepository;
     private final SellerApplicationRepository sellerApplicationRepository;
 
     /**
@@ -47,11 +58,19 @@ public class SellerProductService {
      */
     public SellerProductListResponse getMyProducts(
             Long userId,
+            String filter,
             int page,
             int size
     ) {
         SellerApplication sellerApplication =
                 getApprovedSellerApplication(userId);
+        Long sellerId = sellerApplication.getId();
+
+        // 허용된 필터 값만 통과시키고, 그 외(null 포함)는 전체(ALL)로 처리한다.
+        String normalizedFilter = switch (filter == null ? "ALL" : filter.toUpperCase()) {
+            case "ON_SALE", "SUSPENDED", "SOLD_OUT" -> filter.toUpperCase();
+            default -> "ALL";
+        };
 
         int normalizedPage = Math.max(page, 0);
         int normalizedSize = Math.min(Math.max(size, 1), 100);
@@ -62,13 +81,53 @@ public class SellerProductService {
         );
 
         Page<Product> productPage =
-                productRepository
-                        .findAllBySeller_IdAndDeletedFalseOrderByCreatedAtDesc(
-                                sellerApplication.getId(),
-                                pageable
-                        );
+                productRepository.findSellerProductsByFilter(
+                        sellerId,
+                        normalizedFilter,
+                        pageable
+                );
 
-        return SellerProductListResponse.from(productPage);
+        // 상태별 개수는 페이지네이션과 무관하게 판매자 전체 상품 기준으로 집계한다.
+        long total = productRepository.countByDeletedFalseAndSeller_Id(sellerId);
+        long suspended = productRepository.countSuspendedBySeller(sellerId);
+        long soldOut = productRepository.countSoldOutBySeller(sellerId);
+        long onSale = total - suspended - soldOut; // 분류가 완전·배타적이므로 나머지가 판매중
+
+        SellerProductListResponse.Counts counts =
+                new SellerProductListResponse.Counts(total, onSale, suspended, soldOut);
+
+        return SellerProductListResponse.from(productPage, counts);
+    }
+
+    /**
+     * 상품 수정 화면 초기값 조회 (옵션·이미지 갤러리 포함)
+     */
+    public SellerProductDetailResponse getProductDetail(
+            Long userId,
+            Long productId
+    ) {
+        SellerApplication sellerApplication =
+                getApprovedSellerApplication(userId);
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() ->
+                        new CustomException(
+                                ErrorCode.PRODUCT_NOT_FOUND
+                        )
+                );
+
+        validateProductOwnership(
+                product,
+                sellerApplication
+        );
+
+        if (product.isDeleted()) {
+            throw new CustomException(
+                    ErrorCode.PRODUCT_NOT_FOUND
+            );
+        }
+
+        return SellerProductDetailResponse.from(product);
     }
 
     /**
@@ -96,15 +155,31 @@ public class SellerProductService {
                         )
                 );
 
+        Brand brand = brandRepository
+                .findById(request.brandId())
+                .orElseThrow(() ->
+                        new CustomException(
+                                ErrorCode.BRAND_NOT_FOUND
+                        )
+                );
+
         Product product = Product.builder()
                 .seller(sellerApplication)
                 .category(category)
+                .brand(brand)
                 .name(request.productName())
                 .price(request.price())
                 .discountRate(request.discountRate())
                 .description(request.description())
                 .thumbnailUrl(request.thumbnailUrl())
                 .build();
+
+        for (ProductOptionRequest optionRequest : request.options()) {
+            product.addOption(toOption(product, optionRequest));
+        }
+        for (int i = 0; i < request.imageUrls().size(); i++) {
+            product.addImage(toImage(product, request.imageUrls().get(i), i));
+        }
 
         Product savedProduct =
                 productRepository.save(product);
@@ -157,8 +232,17 @@ public class SellerProductService {
                         )
                 );
 
+        Brand brand = brandRepository
+                .findById(request.brandId())
+                .orElseThrow(() ->
+                        new CustomException(
+                                ErrorCode.BRAND_NOT_FOUND
+                        )
+                );
+
         product.update(
                 category,
+                brand,
                 request.productName(),
                 request.price(),
                 request.discountRate(),
@@ -166,7 +250,35 @@ public class SellerProductService {
                 request.thumbnailUrl()
         );
 
+        List<ProductOption> newOptions = request.options().stream()
+                .map(optionRequest -> toOption(product, optionRequest))
+                .toList();
+        product.replaceOptions(newOptions);
+
+        List<ProductImage> newImages = new ArrayList<>();
+        for (int i = 0; i < request.imageUrls().size(); i++) {
+            newImages.add(toImage(product, request.imageUrls().get(i), i));
+        }
+        product.replaceImages(newImages);
+
         return SellerProductResponse.from(product);
+    }
+
+    private ProductOption toOption(Product product, ProductOptionRequest request) {
+        return ProductOption.builder()
+                .product(product)
+                .optionName(request.optionName())
+                .additionalPrice(request.additionalPrice())
+                .stockQuantity(request.stockQuantity())
+                .build();
+    }
+
+    private ProductImage toImage(Product product, String imageUrl, int sortOrder) {
+        return ProductImage.builder()
+                .product(product)
+                .imageUrl(imageUrl)
+                .sortOrder(sortOrder)
+                .build();
     }
 
     /**
@@ -202,6 +314,47 @@ public class SellerProductService {
         }
 
         product.softDelete();
+    }
+
+    /**
+     * PATCH /api/v1/seller/products/{productId}/status
+     * 판매자가 본인 상품을 판매중지(SUSPENDED) / 판매재개(ON_SALE) 한다.
+     * 삭제된 상품은 상태를 바꿀 수 없다.
+     */
+    @Transactional
+    public SellerProductResponse updateProductStatus(
+            Long userId,
+            Long productId,
+            ProductStatus status
+    ) {
+        SellerApplication sellerApplication =
+                getApprovedSellerApplication(userId);
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() ->
+                        new CustomException(
+                                ErrorCode.PRODUCT_NOT_FOUND
+                        )
+                );
+
+        validateProductOwnership(
+                product,
+                sellerApplication
+        );
+
+        if (product.isDeleted()) {
+            throw new CustomException(
+                    ErrorCode.PRODUCT_NOT_FOUND
+            );
+        }
+
+        if (status == ProductStatus.SUSPENDED) {
+            product.suspend();
+        } else {
+            product.resume();
+        }
+
+        return SellerProductResponse.from(product);
     }
 
     /**

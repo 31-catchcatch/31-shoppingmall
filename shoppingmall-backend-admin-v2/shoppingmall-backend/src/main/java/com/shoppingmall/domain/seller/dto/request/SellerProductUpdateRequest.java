@@ -1,16 +1,23 @@
 package com.shoppingmall.domain.seller.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 public record SellerProductUpdateRequest(
 
         @NotNull(message = "카테고리를 선택해 주세요.")
         Long categoryId,
+
+        @NotNull(message = "브랜드를 선택해 주세요.")
+        Long brandId,
 
         @NotBlank(message = "상품명을 입력해 주세요.")
         @Size(max = 100, message = "상품명은 100자 이하여야 합니다.")
@@ -28,7 +35,14 @@ public record SellerProductUpdateRequest(
         String description,
 
         @Size(max = 512, message = "썸네일 URL은 512자 이하여야 합니다.")
-        String thumbnailUrl
+        String thumbnailUrl,
+
+        @NotEmpty(message = "최소 1개 이상의 옵션을 등록해 주세요.")
+        @Valid
+        List<ProductOptionRequest> options,
+
+        @NotEmpty(message = "최소 1장 이상의 상품 이미지를 등록해 주세요.")
+        List<String> imageUrls
 
 ) {
 }

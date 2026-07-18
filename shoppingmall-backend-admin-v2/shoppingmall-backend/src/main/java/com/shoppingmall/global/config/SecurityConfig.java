@@ -59,7 +59,7 @@ public class SecurityConfig {
                                 "/api/v1/banners"
                         ).permitAll()
 
-                        // 브랜드 목록은 비로그인 허용, 좋아요 토글(POST /brands/{id}/like)은 로그인 필요
+                        // 브랜드 목록은 비로그인 허용 (브랜드 좋아요 기능은 제거됨)
                         .requestMatchers(HttpMethod.GET, "/api/v1/brands").permitAll()
 
                         // QnA는 GET(목록조회)만 비로그인 허용, POST(등록)는 로그인 필요

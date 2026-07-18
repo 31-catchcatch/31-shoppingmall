@@ -85,7 +85,8 @@ public class Seller {
     @Column(
             name = "status",
             nullable = false,
-            length = 30
+            length = 30,
+            columnDefinition = "varchar(30)"
     )
     @Builder.Default
     private SellerStatus status = SellerStatus.ACTIVE;

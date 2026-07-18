@@ -97,7 +97,8 @@ public class SellerApplication {
     @Column(
             name = "status",
             nullable = false,
-            length = 20
+            length = 20,
+            columnDefinition = "varchar(20)"
     )
     @Builder.Default
     private SellerApplicationStatus status =

@@ -19,8 +19,10 @@ import com.shoppingmall.domain.order.repository.OrderDetailRepository;
 import com.shoppingmall.domain.order.repository.OrderRepository;
 import com.shoppingmall.domain.payment.entity.Payment;
 import com.shoppingmall.domain.payment.repository.PaymentRepository;
+import com.shoppingmall.domain.point.service.PointService;
 import com.shoppingmall.domain.product.entity.Product;
 import com.shoppingmall.domain.product.entity.ProductOption;
+import com.shoppingmall.domain.product.repository.ProductOptionRepository;
 import com.shoppingmall.domain.product.repository.ProductRepository;
 import com.shoppingmall.domain.settlement.entity.Settlement;
 import com.shoppingmall.domain.settlement.repository.SettlementRepository;
@@ -55,15 +57,20 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class OrderService {
 
+    /** 구매확정 시 적립 포인트 비율(%). 구매액(실결제 기준)의 1%. */
+    private static final int POINT_EARN_RATE_PERCENT = 1;
+
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
+    private final ProductOptionRepository productOptionRepository;
     private final PaymentRepository paymentRepository;
     private final UserCouponRepository userCouponRepository;
     private final SettlementRepository settlementRepository;
+    private final PointService pointService;
 
     /** 1. 주문서 진입 데이터 조회 (기본 배송지/보유 포인트) */
     public CheckoutResponse getCheckoutData(Long userId) {
@@ -99,6 +106,12 @@ public class OrderService {
             Product product = productRepository.findByIdAndDeletedFalse(item.productId())
                     .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
+            // 장바구니에 담아둔 뒤 판매중지된 상품은 주문 시점에 차단한다.
+            // (조회 필터만으로는 이미 담긴 상품을 못 막으므로 여기서 명시적으로 사유를 구분한다)
+            if (!product.isOnSale()) {
+                throw new CustomException(ErrorCode.PRODUCT_NOT_ON_SALE);
+            }
+
             ProductOption option = null;
             int optionAdditionalPrice = 0;
             if (item.optionId() != null) {
@@ -107,8 +120,11 @@ public class OrderService {
                         .findFirst()
                         .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
 
-                if (option.getStockQuantity() < item.quantity()) {
-                    throw new CustomException(ErrorCode.INVALID_INPUT);
+                // 재고를 원자적으로 차감한다. 조건부 UPDATE(stock >= qty)라 동시 주문에도
+                // 오버셀링이 발생하지 않으며, 영향 행이 0이면 재고 부족으로 판정한다.
+                int decreased = productOptionRepository.decreaseStock(option.getId(), item.quantity());
+                if (decreased == 0) {
+                    throw new CustomException(ErrorCode.OUT_OF_STOCK);
                 }
                 optionAdditionalPrice = option.getAdditionalPrice();
             }
@@ -132,6 +148,7 @@ public class OrderService {
 
         // 쿠폰 할인 적용: couponId가 오면 보유(UserCoupon) 검증 후 할인액 계산 및 사용 처리
         int couponDiscountAmount = 0;
+        UserCoupon appliedCoupon = null;
         if (request.couponId() != null) {
             UserCoupon userCoupon = userCouponRepository
                     .findByUser_IdAndCoupon_IdAndUsedFalse(userId, request.couponId())
@@ -160,6 +177,7 @@ public class OrderService {
             }
             couponDiscountAmount = Math.min(discount.intValue(), totalProductAmount);
             userCoupon.markAsUsed();
+            appliedCoupon = userCoupon;
         }
 
         int finalPaymentAmount = totalProductAmount - couponDiscountAmount - usePoint;
@@ -172,6 +190,7 @@ public class OrderService {
                 .user(user)
                 .totalProductAmount(totalProductAmount)
                 .couponDiscountAmount(couponDiscountAmount)
+                .usedCoupon(appliedCoupon)
                 .usedPointAmount(usePoint)
                 .finalPaymentAmount(finalPaymentAmount)
                 .receiverName(request.receiverName())
@@ -185,6 +204,17 @@ public class OrderService {
         details.forEach(order::addOrderDetail);
 
         Order saved = orderRepository.save(order);
+
+        // 포인트 사용분을 실제 잔액에서 차감한다 (이전엔 결제 금액 계산에만 반영되고
+        // User.point 잔액은 그대로여서 같은 포인트를 무한히 재사용할 수 있었다).
+        if (usePoint > 0) {
+            pointService.adjustPoint(
+                    userId,
+                    -usePoint,
+                    "주문 결제 시 포인트 사용 (주문번호: " + saved.getOrderNumber() + ")"
+            );
+        }
+
         return OrderResponse.from(saved);
     }
 
@@ -230,6 +260,25 @@ public class OrderService {
                     .saleAmount(detail.getTotalPrice())
                     .feeRate(Settlement.DEFAULT_FEE_RATE)
                     .build());
+        }
+
+        // 구매확정 시 구매액(실결제 기준)의 1%를 포인트로 적립한다.
+        // 쿠폰/포인트 할인은 주문 전체 단위이므로, 이 주문상품이 차지하는 정가 비중만큼
+        // 실결제액(finalPaymentAmount)을 배분해 적립 기준으로 삼는다.
+        // 주문의 모든 상품을 확정하면 적립 합계 = finalPaymentAmount × 1% 가 된다.
+        // (구매확정 후에는 클레임/환불이 불가능하므로 적립 회수 로직은 필요 없다.)
+        Order order = detail.getOrder();
+        int totalProductAmount = order.getTotalProductAmount();
+        if (totalProductAmount > 0) {
+            long earnPoint = (long) order.getFinalPaymentAmount() * detail.getTotalPrice()
+                    * POINT_EARN_RATE_PERCENT / ((long) totalProductAmount * 100);
+            if (earnPoint > 0) {
+                pointService.adjustPoint(
+                        userId,
+                        (int) earnPoint,
+                        "구매확정 적립 (주문번호: " + order.getOrderNumber() + ")"
+                );
+            }
         }
     }
 

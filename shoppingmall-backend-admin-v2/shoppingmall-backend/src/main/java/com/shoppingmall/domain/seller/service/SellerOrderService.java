@@ -119,6 +119,38 @@ public class SellerOrderService {
     }
 
     /**
+     * 배송 중인 주문을 배송완료로 처리한다.
+     * (이 처리 없이는 구매자가 구매확정을 할 수 없고, 정산도 생성되지 않는다.)
+     */
+    @Transactional
+    public SellerDeliveryResponse completeDelivery(
+            Long userId,
+            Long orderDetailId
+    ) {
+        SellerApplication sellerApplication =
+                getApprovedSellerApplication(userId);
+
+        OrderDetail orderDetail = orderDetailRepository
+                .findById(orderDetailId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.ORDER_NOT_FOUND)
+                );
+
+        validateOrderOwnership(
+                orderDetail,
+                sellerApplication
+        );
+
+        if (orderDetail.getDeliveryStatus() != DeliveryStatus.SHIPPING) {
+            throw new CustomException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        orderDetail.completeDelivery();
+
+        return SellerDeliveryResponse.from(orderDetail);
+    }
+
+    /**
      * 가장 최근 입점 신청이 승인 상태인지 확인한다.
      */
     private SellerApplication getApprovedSellerApplication(

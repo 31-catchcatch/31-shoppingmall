@@ -73,7 +73,7 @@ public class Settlement extends BaseTimeEntity {
     private Integer settlementAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "varchar(20)")
     private SettlementStatus status;
 
     /** 관리자가 실제 지급 완료를 기록한 시각(미완료 시 null) */

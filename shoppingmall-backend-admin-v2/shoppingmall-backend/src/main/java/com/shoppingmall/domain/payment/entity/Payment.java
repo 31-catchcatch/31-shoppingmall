@@ -35,7 +35,7 @@ public class Payment extends BaseTimeEntity {
     private int amount; // 실제 PG 결제액 (포인트 공제 후 최종 청구된 신용카드 승인 가액)
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20)")
     private PaymentStatus status;
 
     @Builder

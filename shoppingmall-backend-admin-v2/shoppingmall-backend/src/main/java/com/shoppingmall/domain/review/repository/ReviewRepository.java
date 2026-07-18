@@ -16,4 +16,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     // PUT/DELETE /api/v1/reviews/{reviewId} - 본인 소유 검증 겸 단건 조회
     java.util.Optional<Review> findByIdAndUser_IdAndDeletedFalse(Long reviewId, Long userId);
+
+    // 같은 구매 건(주문상품)에 이미 리뷰가 있는지 - 구매 건당 리뷰 1개 중복 방지
+    boolean existsByOrderDetail_IdAndDeletedFalse(Long orderDetailId);
 }

@@ -46,6 +46,7 @@ public class AddressService {
                 .recipientPhone(request.getRecipientPhone())
                 .baseAddress(request.getBaseAddress())
                 .detailAddress(request.getDetailAddress())
+                .zipCode(request.getZipCode())
                 .defaultAddress(request.isDefaultAddress())
                 .build();
 
@@ -80,6 +81,7 @@ public class AddressService {
                 request.getRecipientPhone(),
                 request.getBaseAddress(),
                 request.getDetailAddress(),
+                request.getZipCode(),
                 request.isDefaultAddress()
         );
     }

@@ -66,4 +66,10 @@ public class UserCoupon {
         this.used = true;
         this.usedAt = LocalDateTime.now();
     }
+
+    /** 주문 전체 환불 시 쿠폰을 다시 사용 가능한 상태로 되돌린다. */
+    public void restore() {
+        this.used = false;
+        this.usedAt = null;
+    }
 }

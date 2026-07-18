@@ -4,6 +4,10 @@ import com.shoppingmall.domain.claim.entity.Claim;
 import com.shoppingmall.domain.claim.entity.ClaimStatus;
 import com.shoppingmall.domain.claim.entity.ClaimType;
 import com.shoppingmall.domain.claim.repository.ClaimRepository;
+import com.shoppingmall.domain.order.entity.Order;
+import com.shoppingmall.domain.order.entity.OrderDetail;
+import com.shoppingmall.domain.point.service.PointService;
+import com.shoppingmall.domain.product.repository.ProductOptionRepository;
 import com.shoppingmall.domain.seller.dto.request.SellerRefundCreateRequest;
 import com.shoppingmall.domain.seller.dto.response.SellerRefundResponse;
 import com.shoppingmall.domain.seller.entity.SellerApplication;
@@ -39,6 +43,8 @@ public class SellerRefundService {
 
     private final ClaimRepository claimRepository;
     private final SellerApplicationRepository sellerApplicationRepository;
+    private final PointService pointService;
+    private final ProductOptionRepository productOptionRepository;
 
     /**
      * 판매자가 최종 환불을 완료 처리한다.
@@ -76,26 +82,46 @@ public class SellerRefundService {
         // 4. 최종 환불 처리가 가능한 클레임인지 확인한다.
         validateRefundableClaim(claim);
 
+        // 5. 해당 주문상품을 환불 완료 상태로 전환한다.
+        OrderDetail orderDetail = claim.getOrderDetail();
+        orderDetail.markRefunded();
+
+        // 5-0. 반품된 수량만큼 재고를 복원한다 (옵션 있는 주문만).
+        //      부분 환불이어도 실제 반품된 상품이므로 이 주문상품 단위로 되돌린다.
+        //      (포인트/쿠폰은 주문 전체 단위라 아래 전체환불 조건에서만 복원하지만,
+        //       재고는 주문상품 단위 수량이라 여기서 항상 복원한다.)
+        if (orderDetail.getProductOption() != null) {
+            productOptionRepository.restoreStock(
+                    orderDetail.getProductOption().getId(),
+                    orderDetail.getQuantity()
+            );
+        }
+
         /*
-         * 5. 실제 PG 결제 취소 및 포인트 회수
+         * 5-1. 주문에 포함된 모든 주문상품이 환불 완료되었다면(=주문 전체 환불)
+         *      주문 상태를 환불로 전환하고, 사용했던 포인트/쿠폰을 되돌려 준다.
          *
-         * PaymentService와 PointService가 완성되면
-         * 아래 위치에 실제 연동 로직을 추가한다.
+         *      부분 환불(주문의 일부 상품만 환불)인 경우에는 포인트·쿠폰이
+         *      주문 전체 단위로 적용되어 있어 되돌리지 않는다.
          *
-         * 예시:
-         *
-         * PaymentCancelResult paymentResult =
-         *         paymentService.cancelPayment(
-         *                 claim.getOrderDetail().getOrder().getId(),
-         *                 claim.getClaimAmount(),
-         *                 request.memo()
-         *         );
-         *
-         * pointService.recoverUsedPoints(
-         *         claim.getOrderDetail().getOrder().getUser().getId(),
-         *         claim.getOrderDetail().getOrder().getUsedPointAmount()
-         * );
+         * NOTE: PG 결제 취소는 별도 PG 연동이 없는 가상결제 구조라 대상에서 제외한다.
          */
+        Order order = orderDetail.getOrder();
+        if (order.isFullyRefunded()) {
+            order.markRefunded();
+
+            if (order.getUsedPointAmount() > 0) {
+                pointService.adjustPoint(
+                        order.getUser().getId(),
+                        order.getUsedPointAmount(),
+                        "환불로 인한 포인트 복원 (주문번호: " + order.getOrderNumber() + ")"
+                );
+            }
+
+            if (order.getUsedCoupon() != null) {
+                order.getUsedCoupon().restore();
+            }
+        }
 
         // 6. 환불 처리가 끝났으므로 클레임을 완료 상태로 변경한다.
         claim.complete();

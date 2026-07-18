@@ -3,8 +3,10 @@ package com.shoppingmall.domain.coupon.controller;
 import com.shoppingmall.domain.coupon.dto.response.CouponListResponse;
 import com.shoppingmall.domain.coupon.service.CouponService;
 import com.shoppingmall.global.common.ApiResponse;
+import com.shoppingmall.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -23,6 +25,8 @@ public class CouponController {
     @GetMapping
     public ResponseEntity<ApiResponse<CouponListResponse>>
     getAvailableCoupons(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+
             @RequestParam(defaultValue = "0")
             int page,
 
@@ -31,6 +35,7 @@ public class CouponController {
     ) {
         CouponListResponse response =
                 couponService.getAvailableCoupons(
+                        userDetails.getUser().getId(),
                         page,
                         size
                 );

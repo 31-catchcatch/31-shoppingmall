@@ -34,6 +34,10 @@ public enum ErrorCode {
     // Product
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT-001", "존재하지 않는 상품입니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT-002", "존재하지 않는 카테고리입니다."),
+    BRAND_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT-003", "존재하지 않는 브랜드입니다."),
+    PRODUCT_NOT_ON_SALE(HttpStatus.CONFLICT, "PRODUCT-004", "현재 판매중지된 상품입니다."),
+    OUT_OF_STOCK(HttpStatus.CONFLICT, "PRODUCT-005", "재고가 부족합니다."),
+    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW-001", "이미 리뷰를 작성한 주문입니다."),
 
     // ===== Seller (sell 추가) =====
     SELLER_NOT_FOUND(HttpStatus.NOT_FOUND, "SELLER-001", "판매자를 찾을 수 없습니다."),
@@ -69,9 +73,6 @@ public enum ErrorCode {
     // ===== Refund (sell 추가) =====
     REFUND_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "REFUND-001", "현재 클레임 유형 또는 상태에서는 환불할 수 없습니다."),
     REFUND_PROCESS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "REFUND-002", "환불 처리 중 오류가 발생했습니다."),
-
-    // ===== PaymentMethod (일반 사용자 마이페이지 - 결제수단) =====
-    PAYMENT_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT-001", "등록되지 않은 결제 수단입니다."),
 
     // ===== Notification =====
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "존재하지 않는 알림입니다."),

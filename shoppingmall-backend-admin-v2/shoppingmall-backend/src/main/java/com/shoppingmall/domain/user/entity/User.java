@@ -79,6 +79,11 @@ public class User extends BaseTimeEntity {
         this.deleted = true;
     }
 
+    /** 관리자 - 정지 해제/복구 (PATCH /admin/users/{id}/status). "정지"는 별도 플래그 없이 is_deleted를 그대로 재사용한다. */
+    public void restore() {
+        this.deleted = false;
+    }
+
     /**
      * 포인트를 증감시킨다. amount는 양수(적립)/음수(차감) 모두 가능.
      * 차감 결과가 음수가 되는지는 호출하는 서비스(PointService)에서 미리 검증하고 불러야 한다.

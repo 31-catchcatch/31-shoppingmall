@@ -112,7 +112,8 @@ public class CouponRequest extends BaseTimeEntity {
     @Column(
             name = "status",
             nullable = false,
-            length = 20
+            length = 20,
+            columnDefinition = "varchar(20)"
     )
     private CouponRequestStatus status;
 

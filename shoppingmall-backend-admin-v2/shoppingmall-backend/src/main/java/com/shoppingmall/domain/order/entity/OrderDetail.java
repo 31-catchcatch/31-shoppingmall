@@ -67,7 +67,7 @@ public class OrderDetail extends BaseTimeEntity {
     private Integer totalPrice;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "delivery_status", nullable = false, length = 30)
+    @Column(name = "delivery_status", nullable = false, length = 30, columnDefinition = "varchar(30)")
     private DeliveryStatus deliveryStatus;
 
     @Column(name = "courier_company", length = 50)
@@ -160,6 +160,13 @@ public class OrderDetail extends BaseTimeEntity {
      */
     public void requestExchange() {
         this.deliveryStatus = DeliveryStatus.EXCHANGE_REQUESTED;
+    }
+
+    /**
+     * 판매자가 환불(반품) 클레임을 최종 완료 처리하면 호출한다.
+     */
+    public void markRefunded() {
+        this.deliveryStatus = DeliveryStatus.REFUNDED;
     }
 
     public boolean canRegisterDelivery() {

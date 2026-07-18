@@ -58,9 +58,16 @@ public class ReviewService {
             throw new CustomException(ErrorCode.INVALID_INPUT); // "구매 확정이 완료된 상품만 리뷰 작성이 가능합니다."
         }
 
+        // 중복 검증: 같은 구매 건(주문상품)에는 리뷰를 한 번만 작성할 수 있다.
+        // (같은 상품을 재구매하면 orderDetail 이 다르므로 새로 작성 가능)
+        if (reviewRepository.existsByOrderDetail_IdAndDeletedFalse(orderDetail.getId())) {
+            throw new CustomException(ErrorCode.REVIEW_ALREADY_EXISTS);
+        }
+
         Review review = Review.builder()
                 .user(user)
                 .product(product)
+                .orderDetail(orderDetail)
                 .rating(request.getRating())
                 .content(request.getContent())
                 .imageUrl(request.getImageUrl())

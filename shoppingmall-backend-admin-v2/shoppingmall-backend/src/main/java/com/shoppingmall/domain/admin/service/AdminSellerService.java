@@ -68,6 +68,13 @@ public class AdminSellerService {
         }
 
         if (request.decision() == ReviewDecisionRequest.Decision.APPROVE) {
+            if (sellerRepository.existsByUser_Id(application.getUser().getId())) {
+                throw new CustomException(ErrorCode.SELLER_APPLICATION_ALREADY_EXISTS);
+            }
+            if (sellerRepository.existsByBusinessRegistrationNumber(application.getBusinessRegistrationNumber())) {
+                throw new CustomException(ErrorCode.BUSINESS_NUMBER_ALREADY_EXISTS);
+            }
+
             application.approve();
 
             Seller seller = Seller.builder()

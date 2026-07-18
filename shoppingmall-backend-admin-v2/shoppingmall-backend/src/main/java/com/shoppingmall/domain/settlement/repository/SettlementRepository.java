@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 정산 리포지토리.
@@ -19,6 +20,10 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
     /** 동일 주문상세로 정산이 이미 생성되었는지(중복 정산 방지) */
     boolean existsByOrderDetail_Id(Long orderDetailId);
+
+    /** 판매자 일괄 지급완료 처리 대상(해당 기간의 PENDING 건) 조회 */
+    List<Settlement> findAllBySeller_IdAndStatusAndCreatedAtBetween(
+            Long sellerId, SettlementStatus status, LocalDateTime start, LocalDateTime end);
 
     // ===================== 판매자별 집계 =====================
 
