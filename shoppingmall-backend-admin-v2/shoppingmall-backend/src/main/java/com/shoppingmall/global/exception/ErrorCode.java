@@ -86,6 +86,9 @@ public enum ErrorCode {
     COUPON_ALREADY_CLAIMED(HttpStatus.CONFLICT, "COUPON-103", "이미 발급받은 쿠폰입니다."),
     COUPON_SOLD_OUT(HttpStatus.CONFLICT, "COUPON-104", "쿠폰 발급 수량이 모두 소진되었습니다."),
 
+    // ===== Payment (결제수단) =====
+    PAYMENT_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT-001", "존재하지 않거나 접근 권한이 없는 결제수단입니다."),
+
     // ===== Settlement =====
     SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SETTLEMENT-001", "존재하지 않는 정산 내역입니다.");
 
