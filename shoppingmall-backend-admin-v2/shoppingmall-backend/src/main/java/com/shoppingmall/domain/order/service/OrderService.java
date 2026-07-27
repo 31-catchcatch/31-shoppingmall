@@ -33,6 +33,7 @@ import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,7 @@ import java.util.UUID;
  * kim이 만든 체크아웃/주문생성 흐름 + sell이 만든 주문내역/구매확정 흐름을
  * sell 버전 Order/OrderDetail 엔티티 기준으로 하나로 합친 버전이다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -59,6 +61,12 @@ public class OrderService {
 
     /** 구매확정 시 적립 포인트 비율(%). 구매액(실결제 기준)의 1%. */
     private static final int POINT_EARN_RATE_PERCENT = 1;
+
+    /** 기본 배송비(원). 상품 총액이 무료배송 기준 미만일 때 부과한다. */
+    public static final int SHIPPING_FEE = 3000;
+
+    /** 무료배송 기준 금액(원). 상품 총액이 이 값 이상이면 배송비가 0원이다. */
+    public static final int FREE_SHIPPING_THRESHOLD = 50000;
 
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
@@ -85,6 +93,8 @@ public class OrderService {
                 .defaultAddress(defaultAddr != null ? defaultAddr.getBaseAddress() : "")
                 .defaultAddressDetail(defaultAddr != null ? defaultAddr.getDetailAddress() : "")
                 .availablePoint(user.getPoint())
+                .shippingFee(SHIPPING_FEE)
+                .freeShippingThreshold(FREE_SHIPPING_THRESHOLD)
                 .build();
     }
 
@@ -180,7 +190,10 @@ public class OrderService {
             appliedCoupon = userCoupon;
         }
 
-        int finalPaymentAmount = totalProductAmount - couponDiscountAmount - usePoint;
+        // 배송비는 쿠폰 할인 대상이 아니므로 상품 총액 기준으로 계산해 그대로 더한다.
+        int shippingFee = calcShippingFee(totalProductAmount);
+
+        int finalPaymentAmount = totalProductAmount + shippingFee - couponDiscountAmount - usePoint;
         if (finalPaymentAmount < 0) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
@@ -216,6 +229,72 @@ public class OrderService {
         }
 
         return OrderResponse.from(saved);
+    }
+
+    /**
+     * 2-1. 결제 대기 주문 취소 — 결제창을 닫거나 결제에 실패했을 때 되돌리기.
+     *
+     * placeOrder()는 결제 여부와 무관하게 주문을 만드는 시점에 재고·쿠폰·포인트를 먼저
+     * 소모한다. 결제가 성사되지 않으면 그 자원이 아무도 쓸 수 없는 채로 잠기기 때문에
+     * 이 메서드가 셋을 되돌린다. 되돌리는 방식은 환불 경로(SellerRefundService)와 같다.
+     *
+     * 적립 포인트는 회수 대상이 아니다. 적립은 결제가 아니라 구매확정 시점에 지급되므로
+     * (confirmPurchase 참고) 결제 전 단계에는 회수할 적립분이 존재하지 않는다.
+     *
+     * PENDING 주문만 취소할 수 있다. 결제가 끝난 주문의 취소는 PG 승인까지 되돌려야 해서
+     * 여기서 다루지 않는다.
+     *
+     * 장바구니는 복구하지 않는다 (주문 생성 시 삭제된다). 재구매하려면 다시 담아야 한다.
+     */
+    @Transactional
+    public OrderResponse cancelOrder(Long userId, Long orderId, String reason) {
+        Order order = orderRepository.findByIdAndUser_Id(orderId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        // 이미 취소된 주문이면 아무것도 되돌리지 않고 현재 상태만 돌려준다.
+        // 프론트가 결제창 취소와 실패 랜딩 양쪽에서 호출할 수 있어 중복 호출이 정상 경로이고,
+        // 여기서 복구를 재실행하면 재고와 포인트가 이중으로 늘어난다.
+        if (order.getStatus() == OrderStatus.CANCELED) {
+            return OrderResponse.from(order);
+        }
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+
+        // 1) 재고 복구. 옵션이 없는 주문상품은 애초에 차감되지 않았으므로 되돌릴 것도 없다.
+        for (OrderDetail detail : order.getOrderDetails()) {
+            if (detail.getProductOption() != null) {
+                productOptionRepository.restoreStock(
+                        detail.getProductOption().getId(),
+                        detail.getQuantity()
+                );
+            }
+            detail.cancel();
+        }
+
+        // 2) 쿠폰을 다시 사용 가능한 상태로 되돌린다.
+        if (order.getUsedCoupon() != null) {
+            order.getUsedCoupon().restore();
+        }
+
+        // 3) 사용한 포인트를 잔액으로 되돌린다.
+        if (order.getUsedPointAmount() > 0) {
+            pointService.adjustPoint(
+                    userId,
+                    order.getUsedPointAmount(),
+                    "주문 취소로 인한 포인트 복원 (주문번호: " + order.getOrderNumber() + ")"
+            );
+        }
+
+        // 4) 결제 시도 원장이 남아 있으면 함께 닫는다. READY 로 두면 승인 대기처럼 보인다.
+        paymentRepository.findByOrder_Id(order.getId()).ifPresent(Payment::cancelPayment);
+
+        order.cancel();
+
+        // 취소 사유를 담을 컬럼이 없어 로그로만 남긴다 (DB 스키마 무변경).
+        log.info("주문 취소: orderNumber={}, userId={}, reason={}", order.getOrderNumber(), userId, reason);
+
+        return OrderResponse.from(order);
     }
 
     /** 3. 내 주문 내역 조회 (상태 필터 선택) */
@@ -264,13 +343,19 @@ public class OrderService {
 
         // 구매확정 시 구매액(실결제 기준)의 1%를 포인트로 적립한다.
         // 쿠폰/포인트 할인은 주문 전체 단위이므로, 이 주문상품이 차지하는 정가 비중만큼
-        // 실결제액(finalPaymentAmount)을 배분해 적립 기준으로 삼는다.
-        // 주문의 모든 상품을 확정하면 적립 합계 = finalPaymentAmount × 1% 가 된다.
+        // 실결제액을 배분해 적립 기준으로 삼는다.
+        //
+        // 단, 배송비는 적립 대상에서 제외한다. 배송비는 매출이 아니라 원가를 그대로
+        // 전가한 금액이라 여기에 적립을 주면 배송비를 낼수록 이득이 되기 때문이다.
+        // 그래서 finalPaymentAmount에서 배송비를 뺀 값(= 상품 실결제액)을 기준으로 쓴다.
+        // 주문의 모든 상품을 확정하면 적립 합계 = (finalPaymentAmount - 배송비) × 1% 가 된다.
         // (구매확정 후에는 클레임/환불이 불가능하므로 적립 회수 로직은 필요 없다.)
         Order order = detail.getOrder();
         int totalProductAmount = order.getTotalProductAmount();
         if (totalProductAmount > 0) {
-            long earnPoint = (long) order.getFinalPaymentAmount() * detail.getTotalPrice()
+            int productPaymentAmount =
+                    order.getFinalPaymentAmount() - order.getShippingFee();
+            long earnPoint = (long) productPaymentAmount * detail.getTotalPrice()
                     * POINT_EARN_RATE_PERCENT / ((long) totalProductAmount * 100);
             if (earnPoint > 0) {
                 pointService.adjustPoint(
@@ -310,6 +395,23 @@ public class OrderService {
      */
     public OrderResponse getStatement(Long userId, Long orderId) {
         return getMyOrder(userId, orderId);
+    }
+
+    /**
+     * 상품 총액 기준 배송비를 계산한다.
+     *
+     * 이 값은 Order에 별도 컬럼으로 저장하지 않는다. finalPaymentAmount가
+     * (totalProductAmount + 배송비 - 쿠폰할인 - 사용포인트)로 확정되므로,
+     * 저장된 네 값에서 언제든 정확히 역산할 수 있기 때문이다.
+     *
+     * 따라서 이 메서드는 "새 주문의 배송비를 정할 때"만 쓴다. 이미 만들어진
+     * 주문의 배송비를 알아낼 때는 정책 상수에 의존하지 않는 Order.getShippingFee()를 쓸 것.
+     */
+    private static int calcShippingFee(int totalProductAmount) {
+        if (totalProductAmount <= 0) {
+            return 0;
+        }
+        return totalProductAmount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
     }
 
     private String generateOrderNumber() {

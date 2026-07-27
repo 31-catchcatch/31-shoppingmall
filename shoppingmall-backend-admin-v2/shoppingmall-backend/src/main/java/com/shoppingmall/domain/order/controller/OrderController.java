@@ -1,5 +1,6 @@
 package com.shoppingmall.domain.order.controller;
 
+import com.shoppingmall.domain.order.dto.request.OrderCancelRequest;
 import com.shoppingmall.domain.order.dto.request.OrderCreateRequest;
 import com.shoppingmall.domain.order.dto.response.CheckoutResponse;
 import com.shoppingmall.domain.order.dto.response.OrderDeliveryResponse;
@@ -43,6 +44,22 @@ public class OrderController {
         OrderResponse response = orderService.placeOrder(userDetails.getUser().getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("주문이 정상적으로 생성되었습니다.", response));
+    }
+
+    /**
+     * POST /api/v1/orders/{orderId}/cancel - 결제 대기 주문 취소
+     *
+     * 결제창을 닫거나 결제에 실패했을 때 프론트가 호출한다. 주문 생성 시점에 미리 빠져나간
+     * 재고·쿠폰·포인트를 되돌린다. 이미 취소된 주문에 다시 호출해도 안전하다(멱등).
+     */
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderCancelRequest request) {
+        OrderResponse response =
+                orderService.cancelOrder(userDetails.getUser().getId(), orderId, request.reason());
+        return ResponseEntity.ok(ApiResponse.success("주문이 취소되었습니다.", response));
     }
 
     /** GET /api/v1/orders - 주문 내역 조회 (상태 필터 선택) */

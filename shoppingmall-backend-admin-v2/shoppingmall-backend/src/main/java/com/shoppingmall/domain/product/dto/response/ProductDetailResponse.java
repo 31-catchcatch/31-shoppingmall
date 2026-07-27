@@ -15,6 +15,7 @@ public record ProductDetailResponse(
         int discountRate,
         int finalPrice,
         String description,
+        String thumbnailUrl,   // 대표 썸네일 (없으면 null). 바로구매로 진입한 주문서가 사용한다.
         List<String> imageUrls,
         List<OptionResponse> options
 ) {
@@ -28,6 +29,7 @@ public record ProductDetailResponse(
                 product.getDiscountRate(),
                 product.getFinalPrice(),
                 product.getDescription(),
+                product.getThumbnailUrl(),
                 product.getImages().stream().map(img -> img.getImageUrl()).toList(),
                 product.getOptions().stream().map(OptionResponse::from).toList()
         );

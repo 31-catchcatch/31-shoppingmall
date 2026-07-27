@@ -59,6 +59,7 @@ public enum ErrorCode {
 
     // ===== Order (sell 추가) =====
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, "ORDER-001", "현재 주문 상태에서는 배송 처리를 할 수 없습니다."),
+    ORDER_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "ORDER-002", "결제 대기 중인 주문만 취소할 수 있습니다."),
 
     // ===== Claim (sell 추가) =====
     INVALID_CLAIM_STATUS(HttpStatus.BAD_REQUEST, "CLAIM-001", "현재 상태에서는 클레임을 신청하거나 변경할 수 없습니다."),
@@ -78,7 +79,8 @@ public enum ErrorCode {
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "존재하지 않는 알림입니다."),
 
     // ===== Review =====
-    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW-001", "존재하지 않거나 접근 권한이 없는 리뷰입니다."),
+    // 위 REVIEW_ALREADY_EXISTS 가 이미 REVIEW-001 을 쓰고 있어 REVIEW-002 로 재배치
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW-002", "존재하지 않거나 접근 권한이 없는 리뷰입니다."),
 
     // ===== Coupon (사용자) =====
     COUPON_NOT_AVAILABLE(HttpStatus.BAD_REQUEST, "COUPON-101", "사용할 수 없는 쿠폰입니다."),
@@ -88,6 +90,12 @@ public enum ErrorCode {
 
     // ===== Payment (결제수단) =====
     PAYMENT_METHOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT-001", "존재하지 않거나 접근 권한이 없는 결제수단입니다."),
+
+    // ===== Payment (PG 결제 승인) =====
+    PAYMENT_CONFIRM_FAILED(HttpStatus.BAD_REQUEST, "PAYMENT-002", "결제 승인에 실패했습니다."),
+    PAYMENT_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "PAYMENT-003", "결제 금액이 주문 금액과 일치하지 않습니다."),
+    PAYMENT_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "PAYMENT-004", "이미 결제가 완료된 주문입니다."),
+    PAYMENT_GATEWAY_ERROR(HttpStatus.BAD_GATEWAY, "PAYMENT-005", "결제 서버와 통신하지 못했습니다. 잠시 후 다시 시도해주세요."),
 
     // ===== Settlement =====
     SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SETTLEMENT-001", "존재하지 않는 정산 내역입니다.");

@@ -151,6 +151,25 @@ public class Order extends BaseTimeEntity {
         orderDetail.assignOrder(this);
     }
 
+    /**
+     * 이 주문에 부과된 배송비를 돌려준다.
+     *
+     * 배송비는 별도 컬럼으로 저장하지 않는다. finalPaymentAmount가
+     *   totalProductAmount + 배송비 - couponDiscountAmount - usedPointAmount
+     * 로 확정되므로, 저장된 네 값에서 아래처럼 정확히 역산되기 때문이다.
+     *
+     * 정책 상수(무료배송 기준·기본 배송비)로 다시 계산하지 않고 역산하는 이유는,
+     * 배송비 정책이 나중에 바뀌어도 과거 주문에는 그 주문이 실제로 부과받은
+     * 금액이 그대로 나와야 하기 때문이다.
+     *
+     * ⚠️ @Column 필드가 아니라 파생 게터다. Order는 필드 접근 전략(@Id가 필드에 있음)이라
+     * Hibernate가 이 메서드를 매핑하지 않으므로 테이블 스키마에는 영향이 없다.
+     */
+    public int getShippingFee() {
+        return finalPaymentAmount - totalProductAmount
+                + couponDiscountAmount + usedPointAmount;
+    }
+
     public void completePayment() {
         this.status = OrderStatus.PAID;
     }
