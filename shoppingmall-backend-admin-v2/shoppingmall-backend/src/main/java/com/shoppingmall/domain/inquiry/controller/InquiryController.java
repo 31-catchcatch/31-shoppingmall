@@ -16,7 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/** 고객센터 1:1 문의 (프론트 customercenter.js 대응, 로그인 필요) */
+/** 고객센터 1:1 문의 (프론트 customercenter.js 용, 로그인 필요) */
 @RestController
 @RequestMapping("/api/v1/customer-center/inquiries")
 @RequiredArgsConstructor
@@ -40,5 +40,13 @@ public class InquiryController {
         Page<InquiryResponse> response =
                 inquiryService.getMyInquiries(userDetails.getUser().getId(), pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.from(response)));
+    }
+
+    @DeleteMapping("/{inquiryId}")
+    public ResponseEntity<ApiResponse<Void>> deleteInquiry(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long inquiryId) {
+        inquiryService.deleteMyInquiry(userDetails.getUser().getId(), inquiryId);
+        return ResponseEntity.ok(ApiResponse.success("문의가 삭제되었습니다.", null));
     }
 }

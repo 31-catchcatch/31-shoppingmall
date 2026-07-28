@@ -6,6 +6,8 @@ import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,10 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.List;
 
 /**
  * API 명세서 "[일반/판매자] ID/PW 찾기" 담당.
- * TODO(실제 연동 필요): 임시 비밀번호는 실제로는 메일 발송 업체를 통해 사용자에게 전달해야 하는데,
+ * TODO(실제 연동 필요): 임시 비밀번호는 실제로는 메일 발송 주체를 통해 사용자에게 전달해야 하지만,
  * 지금은 EmailVerificationService 와 마찬가지로 로그 출력으로 대체한 mock 상태다.
  */
 @Slf4j
@@ -31,7 +34,10 @@ public class AccountRecoveryService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /** POST /api/v1/auth/find-username - 프론트 형식 { name, email } 로 아이디 찾기 */
+    @PersistenceContext
+    private EntityManager em;
+
+    /** POST /api/v1/auth/find-username - 프론트 요구 방식 { name, email } 로 아이디 찾기 */
     @Transactional(readOnly = true)
     public FindAccountResponse findUsername(com.shoppingmall.domain.auth.dto.request.FindUsernameRequest request) {
         User user = userRepository.findByNameAndEmailAndDeletedFalse(request.name(), request.email())
@@ -40,8 +46,8 @@ public class AccountRecoveryService {
     }
 
     /**
-     * POST /api/v1/auth/reset-password - 사용자가 새 비밀번호를 직접 지정하는 방식 (프론트 화면 흐름 대응).
-     * 기존 find-account(임시 비밀번호 메일 발송)와 달리, 이메일 인증을 통과한 화면에서 바로 새 비밀번호를 설정한다.
+     * POST /api/v1/auth/reset-password - 사용자가 새 비밀번호를 직접 지정하는 방식 (프론트 화면 이름 유지).
+     * 기존 find-account(임시 비밀번호 메일 발송)와 달리, 이메일 인증을 통과한 화면에서 바로 새 비밀번호로 설정한다.
      */
     @Transactional
     public void resetPasswordDirect(com.shoppingmall.domain.auth.dto.request.ResetPasswordRequest request) {
@@ -52,21 +58,29 @@ public class AccountRecoveryService {
 
     @Transactional(readOnly = true)
     public FindAccountResponse findUsername(FindAccountRequest request) {
-        User user = userRepository.findByNameAndEmailAndDeletedFalse(request.name(), request.email())
+        String sql = "SELECT * FROM users WHERE name = '" + request.name()
+                + "' AND email = '" + request.email() + "' AND is_deleted = 0";
+        @SuppressWarnings("unchecked")
+        List<User> found = em.createNativeQuery(sql, User.class).getResultList();
+        User user = found.stream().findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        return FindAccountResponse.idFound(mask(user.getUsername()));
+        return FindAccountResponse.idFound(user.getUsername());
     }
 
     @Transactional
     public FindAccountResponse resetPassword(FindAccountRequest request) {
-        User user = userRepository.findByUsernameAndEmailAndDeletedFalse(request.username(), request.email())
+        String sql = "SELECT * FROM users WHERE username = '" + request.username()
+                + "' AND email = '" + request.email() + "' AND is_deleted = 0";
+        @SuppressWarnings("unchecked")
+        List<User> found = em.createNativeQuery(sql, User.class).getResultList();
+        User user = found.stream().findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String tempPassword = generateTempPassword();
         user.changePassword(passwordEncoder.encode(tempPassword));
 
-        // 실제 메일 발송 연동 전까지는 로그로 대체
+        // 실제 메일 발송 연동 전까지는 로그로 남김
         log.info("[MOCK EMAIL] {} 에게 임시 비밀번호 발송: {}", user.getEmail(), tempPassword);
 
         return FindAccountResponse.passwordReset();

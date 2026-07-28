@@ -37,4 +37,12 @@ public class AdminInquiryService {
                 .orElseThrow(() -> new CustomException(ErrorCode.INQUIRY_NOT_FOUND));
         inquiry.answer(content); // 엔티티 메서드: answer 세팅 + status ANSWERED + answeredAt
     }
+
+    /** DELETE /api/v1/admin/inquiries/{id} - 관리자 문의 삭제 (소유권 무관, ADMIN 권한) */
+    @Transactional
+    public void deleteInquiry(Long inquiryId) {
+        Inquiry inquiry = inquiryRepository.findById(inquiryId)
+                .orElseThrow(() -> new CustomException(ErrorCode.INQUIRY_NOT_FOUND));
+        inquiryRepository.delete(inquiry);
+    }
 }

@@ -42,4 +42,12 @@ public class InquiryService {
         return inquiryRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, pageable)
                 .map(InquiryResponse::from);
     }
+
+    /** DELETE /api/v1/customer-center/inquiries/{inquiryId} - 본인 문의 삭제 (소유권 검증) */
+    @Transactional
+    public void deleteMyInquiry(Long userId, Long inquiryId) {
+        Inquiry inquiry = inquiryRepository.findByIdAndUser_Id(inquiryId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.INQUIRY_NOT_FOUND));
+        inquiryRepository.delete(inquiry);
+    }
 }

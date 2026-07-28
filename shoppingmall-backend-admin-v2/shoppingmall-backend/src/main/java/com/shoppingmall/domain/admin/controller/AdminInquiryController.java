@@ -33,4 +33,10 @@ public class AdminInquiryController {
         adminInquiryService.answerInquiry(inquiryId, request.content());
         return ResponseEntity.ok(ApiResponse.success("답변이 등록되었습니다.", null));
     }
+
+    @DeleteMapping("/{inquiryId}")
+    public ResponseEntity<ApiResponse<Void>> deleteInquiry(@PathVariable Long inquiryId) {
+        adminInquiryService.deleteInquiry(inquiryId);
+        return ResponseEntity.ok(ApiResponse.success("문의가 삭제되었습니다.", null));
+    }
 }
