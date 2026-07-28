@@ -50,8 +50,8 @@ payment:
     base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
     # 토스가 결제 후 리다이렉트할 프론트 주소. 프론트에 빌드 스텝이 없어 값을 갈아끼울 수 없으므로
     # 서버가 GET /api/v1/payments/config 로 내려준다. 환경이 바뀌면 이 값만 바꾸면 된다.
-    success-url: ${TOSS_SUCCESS_URL:http://localhost/payment-success.html}
-    fail-url: ${TOSS_FAIL_URL:http://localhost/payment-fail.html}
+    success-url: ${TOSS_SUCCESS_URL:http://192.168.10.12/payment-success.html}
+    fail-url: ${TOSS_FAIL_URL:http://192.168.10.12/payment-fail.html}
 
 logging:
   level:
