@@ -21,7 +21,6 @@ out/
 .DS_Store
 
 ### 로컬 전용 설정 (DB 비밀번호, JWT 시크릿 등 실제 값이 들어가는 파일은 절대 커밋 금지) ###
-application.yml
 application-local.yml
 .env
 
