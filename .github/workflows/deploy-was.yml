@@ -1,0 +1,120 @@
+name: Deploy to was-01
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'shoppingmall-backend-admin-v2/**'
+  workflow_dispatch:  # 수동 실행 버튼도 활성화
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 17 설치
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Gradle 빌드 (bootWar)
+        working-directory: shoppingmall-backend-admin-v2/shoppingmall-backend
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootWar --no-daemon
+
+      - name: 빌드 결과물 확인
+        working-directory: shoppingmall-backend-admin-v2/shoppingmall-backend
+        run: ls -la build/libs/
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: SSH 배포 키 등록
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: EIC Endpoint 터널 오픈
+        run: |
+          nohup aws ec2-instance-connect open-tunnel \
+            --instance-connect-endpoint-id ${{ secrets.EIC_ENDPOINT_ID }} \
+            --private-ip-address ${{ secrets.WAS_PRIVATE_IP }} \
+            --remote-port 22 \
+            --local-port 22222 > tunnel.log 2>&1 &
+          sleep 8
+          cat tunnel.log || true
+
+      - name: SSH 설정 (호스트키 검증 우회, 터널 경유)
+        run: |
+          mkdir -p ~/.ssh
+          cat >> ~/.ssh/config << 'EOF'
+          Host was01
+            HostName localhost
+            Port 22222
+            User cloud-user
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+
+      - name: WAR 파일 was-01로 전송
+        working-directory: shoppingmall-backend-admin-v2/shoppingmall-backend
+        run: |
+          WAR_FILE=$(ls build/libs/*.war | head -1)
+          echo "전송할 파일: $WAR_FILE"
+          scp -F ~/.ssh/config "$WAR_FILE" was01:/tmp/ROOT.war
+
+      - name: was-01 배포 적용 (기존 스크립트 로직과 동일한 방식)
+        run: |
+          ssh -F ~/.ssh/config was01 '
+            set -e
+            echo "=== Tomcat 중지 ==="
+            sudo systemctl stop tomcat
+
+            echo "=== 기존 WAR 백업 후 교체 ==="
+            sudo mv /opt/tomcat/webapps/ROOT.war /opt/tomcat/webapps/ROOT.war.bak_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+            sudo rm -rf /opt/tomcat/webapps/ROOT
+            sudo mv /tmp/ROOT.war /opt/tomcat/webapps/ROOT.war
+            sudo chown tomcat:tomcat /opt/tomcat/webapps/ROOT.war
+
+            echo "=== Tomcat 재시작 ==="
+            sudo systemctl start tomcat
+
+            echo "=== 기동 대기 (최대 60초) ==="
+            STARTED=false
+            for i in $(seq 1 12); do
+              sleep 5
+              if sudo grep -q "Started ServletInitializer" /opt/tomcat/logs/catalina.out 2>/dev/null; then
+                STARTED=true
+                break
+              fi
+              echo "대기 중... ($i/12)"
+            done
+
+            if [ "$STARTED" = false ]; then
+              echo "60초 내에 기동 실패, 최근 로그:"
+              sudo tail -100 /opt/tomcat/logs/catalina.out
+              exit 1
+            fi
+
+            echo "=== 에러 로그 확인 ==="
+            ERROR_COUNT=$(sudo tail -200 /opt/tomcat/logs/catalina.out | grep -c "ERROR\|SEVERE" || true)
+            if [ "$ERROR_COUNT" -gt 0 ]; then
+              echo "경고: ERROR/SEVERE ${ERROR_COUNT}건 발견"
+              sudo tail -200 /opt/tomcat/logs/catalina.out | grep "ERROR\|SEVERE" | tail -10
+            fi
+
+            echo "=== 최종 헬스체크 ==="
+            curl -sf http://localhost:8080/api/v1/banners -o /dev/null && echo "배포 성공: API 정상 응답" || (echo "배포 실패: API 응답 없음" && exit 1)
+          '
