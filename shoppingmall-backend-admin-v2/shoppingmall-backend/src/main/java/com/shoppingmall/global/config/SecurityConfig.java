@@ -54,9 +54,17 @@ public class SecurityConfig {
                                 "/api/v1/categories",
                                 "/api/v1/search/**",
                                 "/api/v1/products", "/api/v1/products/*",
+                                "/uploads/**",
                                 "/api/v1/products/*/reviews",
                                 "/api/v1/banners"
                         ).permitAll()
+
+                        // 브랜드 목록은 비로그인 허용 (브랜드 좋아요 기능은 제거됨)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/brands").permitAll()
+
+                        // 토스 결제창 호출에 필요한 공개 설정값(clientKey/리다이렉트 URL) 조회.
+                        // 같은 /api/v1/payments 경로의 POST(결제 승인)는 아래 anyRequest().authenticated() 가 그대로 적용된다.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/payments/config").permitAll()
 
                         // QnA는 GET(목록조회)만 비로그인 허용, POST(등록)는 로그인 필요
                         // -> 같은 경로를 GET/POST 둘 다 쓰므로 메서드 단위로 분리해야 함

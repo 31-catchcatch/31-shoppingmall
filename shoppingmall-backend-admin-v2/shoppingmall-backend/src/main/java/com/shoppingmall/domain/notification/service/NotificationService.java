@@ -1,5 +1,6 @@
 package com.shoppingmall.domain.notification.service;
 
+import com.shoppingmall.domain.notification.dto.response.NotificationResponse;
 import com.shoppingmall.domain.notification.entity.Notification;
 import com.shoppingmall.domain.notification.entity.NotificationType;
 import com.shoppingmall.domain.notification.repository.NotificationRepository;
@@ -9,6 +10,8 @@ import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,5 +52,19 @@ public class NotificationService {
 
         // 실제 알림톡/문자 발송 연동 전까지는 로그로 대체
         log.info("[MOCK NOTIFICATION] to userId={} [{}] {} - {}", userId, type, title, content);
+    }
+
+    /** GET /api/v1/notifications - 내 알림 목록 조회 (최신순) */
+    public Page<NotificationResponse> getMyNotifications(Long userId, Pageable pageable) {
+        return notificationRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, pageable)
+                .map(NotificationResponse::from);
+    }
+
+    /** PATCH /api/v1/notifications/{notificationId}/read - 알림 읽음 처리 (본인 소유만 허용) */
+    @Transactional
+    public void markAsRead(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findByIdAndUser_Id(notificationId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
+        notification.markAsRead();
     }
 }

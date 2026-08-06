@@ -152,7 +152,8 @@ public class SellerClaimService {
 
         validateStatusChange(
                 claim.getStatus(),
-                targetStatus
+                targetStatus,
+                claim.getType()
         );
 
         /*
@@ -170,6 +171,11 @@ public class SellerClaimService {
 
             case PROCESSING ->
                     claim.startProcessing(request.reason());
+
+            // 교환(EXCHANGE) 건은 결제 취소가 얽혀 있지 않아 이 API에서 바로 완료 처리한다.
+            // 환불(RETURN) 건의 완료 처리는 POST /seller/refunds(SellerRefundService)에서만 허용한다.
+            case COMPLETED ->
+                    claim.complete();
 
             default ->
                     throw new CustomException(
@@ -287,10 +293,13 @@ public class SellerClaimService {
      * REQUESTED → ACCEPTED
      * REQUESTED → REJECTED
      * ACCEPTED  → PROCESSING
+     * PROCESSING → COMPLETED (교환(EXCHANGE) 건만 허용. 환불(RETURN) 건은
+     *                          결제 취소가 얽혀 있어 SellerRefundService에서만 완료 처리한다.)
      */
     private void validateStatusChange(
             ClaimStatus currentStatus,
-            ClaimStatus targetStatus
+            ClaimStatus targetStatus,
+            ClaimType claimType
     ) {
         boolean valid =
                 (currentStatus == ClaimStatus.REQUESTED
@@ -300,7 +309,11 @@ public class SellerClaimService {
                                 && targetStatus == ClaimStatus.REJECTED)
                         ||
                         (currentStatus == ClaimStatus.ACCEPTED
-                                && targetStatus == ClaimStatus.PROCESSING);
+                                && targetStatus == ClaimStatus.PROCESSING)
+                        ||
+                        (currentStatus == ClaimStatus.PROCESSING
+                                && targetStatus == ClaimStatus.COMPLETED
+                                && claimType == ClaimType.EXCHANGE);
 
         if (!valid) {
             throw new CustomException(

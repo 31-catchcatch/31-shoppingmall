@@ -64,8 +64,24 @@ public class User extends BaseTimeEntity {
         this.password = encodedPassword;
     }
 
+    public void updateProfile(String name, String email, String phoneNumber) {
+        this.name = name;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+    }
+
+    /** 판매자 마이페이지(PUT /seller/me) 등에서 이메일만 변경할 때 사용 */
+    public void changeEmail(String email) {
+        this.email = email;
+    }
+
     public void softDelete() {
         this.deleted = true;
+    }
+
+    /** 관리자 - 정지 해제/복구 (PATCH /admin/users/{id}/status). "정지"는 별도 플래그 없이 is_deleted를 그대로 재사용한다. */
+    public void restore() {
+        this.deleted = false;
     }
 
     /**

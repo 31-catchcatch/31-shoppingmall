@@ -46,6 +46,7 @@ public class AddressService {
                 .recipientPhone(request.getRecipientPhone())
                 .baseAddress(request.getBaseAddress())
                 .detailAddress(request.getDetailAddress())
+                .zipCode(request.getZipCode())
                 .defaultAddress(request.isDefaultAddress())
                 .build();
 
@@ -61,13 +62,28 @@ public class AddressService {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ADDRESS_NOT_FOUND));
 
+        // 본인 소유 배송지만 수정 가능
+        if (!address.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        // 이 배송지를 기본으로 지정하면, 기존 기본 배송지는 해제 (자기 자신 제외)
         if (request.isDefaultAddress()) {
             addressRepository.findByUserAndDefaultAddressTrue(user)
+                    .filter(existing -> !existing.getId().equals(addressId))
                     .ifPresent(existing -> existing.updateDefaultStatus(false));
         }
 
-        // JPA 영속성 변경 메서드 호출을 통한 상태 제어 (Update 실행)
-        // 엔티티 내에 setter가 없으므로 Address.java에 정보 수정용 메서드를 구현하거나 재생성 처리를 진행합니다.
+        // 더티 체킹으로 UPDATE 실행
+        address.update(
+                request.getAddressName(),
+                request.getRecipientName(),
+                request.getRecipientPhone(),
+                request.getBaseAddress(),
+                request.getDetailAddress(),
+                request.getZipCode(),
+                request.isDefaultAddress()
+        );
     }
 
     // 주소 삭제 (DELETE)

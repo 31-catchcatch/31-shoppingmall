@@ -7,6 +7,7 @@ public record OrderDetailResponse(
         Long orderDetailId,
         Long productId,
         String productName,
+        String thumbnailUrl,   // 상품의 현재 대표 썸네일 (없으면 null). 주문 당시 이미지 스냅샷이 아니다.
         Integer unitPrice,
         Integer quantity,
         Integer totalPrice,
@@ -21,6 +22,7 @@ public record OrderDetailResponse(
                 detail.getId(),
                 detail.getProduct().getId(),
                 detail.getProductName(),
+                detail.getProduct().getThumbnailUrl(),
                 detail.getUnitPrice(),
                 detail.getQuantity(),
                 detail.getTotalPrice(),

@@ -62,6 +62,11 @@ public class QnaService {
         Product product = productRepository.findByIdAndDeletedFalse(productId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
+        // 판매중지 상품에는 신규 문의를 막는다. (기존 문의 조회는 그대로 허용)
+        if (!product.isOnSale()) {
+            throw new CustomException(ErrorCode.PRODUCT_NOT_ON_SALE);
+        }
+
         Qna qna = Qna.builder()
                 .user(user)
                 .product(product)

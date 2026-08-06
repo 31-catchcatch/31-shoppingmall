@@ -2,6 +2,7 @@ package com.shoppingmall.domain.admin.controller;
 
 import com.shoppingmall.domain.admin.dto.request.ReviewDecisionRequest;
 import com.shoppingmall.domain.admin.dto.request.SellerStatusUpdateRequest;
+import com.shoppingmall.domain.admin.dto.response.AdminSellerResponse;
 import com.shoppingmall.domain.admin.service.AdminSellerService;
 import com.shoppingmall.domain.seller.dto.response.SellerApplicationResponse;
 import com.shoppingmall.domain.seller.entity.SellerApplicationStatus;
@@ -20,6 +21,12 @@ import java.util.List;
 public class AdminSellerController {
 
     private final AdminSellerService adminSellerService;
+
+    /** GET /admin/sellers - 승인된 입점업체 전체 목록 */
+    @GetMapping("/sellers")
+    public ResponseEntity<ApiResponse<List<AdminSellerResponse>>> getSellers() {
+        return ResponseEntity.ok(ApiResponse.success(adminSellerService.getSellers()));
+    }
 
     /** GET /admin/sellers/applications - 입점 신청 목록 (기본: PENDING만) */
     @GetMapping("/sellers/applications")

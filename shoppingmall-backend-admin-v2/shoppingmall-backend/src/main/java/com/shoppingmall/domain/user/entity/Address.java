@@ -37,23 +37,40 @@ public class Address extends BaseTimeEntity {
     @Column(nullable = false, length = 255)
     private String detailAddress; // 상세 주소
 
+    @Column(name = "zip_code", nullable = false, length = 10)
+    private String zipCode; // 우편번호 (주문서에서 그대로 사용)
+
     @Column(name = "is_default", nullable = false)
     private boolean defaultAddress; // 기본 배송지 여부
 
     @Builder
     public Address(User user, String addressName, String recipientName,
-                   String recipientPhone, String baseAddress, String detailAddress, boolean defaultAddress) {
+                   String recipientPhone, String baseAddress, String detailAddress,
+                   String zipCode, boolean defaultAddress) {
         this.user = user;
         this.addressName = addressName;
         this.recipientName = recipientName;
         this.recipientPhone = recipientPhone;
         this.baseAddress = baseAddress;
         this.detailAddress = detailAddress;
+        this.zipCode = zipCode;
         this.defaultAddress = defaultAddress;
     }
 
     // 기본 배송지 변경 시 상태를 바꾸는 비즈니스 로직 메서드
     public void updateDefaultStatus(boolean isDefault) {
         this.defaultAddress = isDefault;
+    }
+
+    /** PUT /users/me/addresses/{addressId} - 배송지 정보 전체 수정 */
+    public void update(String addressName, String recipientName, String recipientPhone,
+                       String baseAddress, String detailAddress, String zipCode, boolean defaultAddress) {
+        this.addressName = addressName;
+        this.recipientName = recipientName;
+        this.recipientPhone = recipientPhone;
+        this.baseAddress = baseAddress;
+        this.detailAddress = detailAddress;
+        this.zipCode = zipCode;
+        this.defaultAddress = defaultAddress;
     }
 }

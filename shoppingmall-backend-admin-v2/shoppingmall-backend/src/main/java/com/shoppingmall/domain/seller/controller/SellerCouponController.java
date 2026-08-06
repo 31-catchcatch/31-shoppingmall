@@ -24,7 +24,7 @@ public class SellerCouponController {
 
     private final SellerCouponService sellerCouponService;
 
-    @PostMapping("/request")
+    @PostMapping({"/request", "/requests"})
     public ResponseEntity<ApiResponse<SellerCouponResponse>> createCouponRequest(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody SellerCouponCreateRequest request

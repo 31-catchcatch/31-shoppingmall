@@ -58,4 +58,18 @@ public class SellerOrderController {
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    /** PATCH /api/v1/seller/orders/{orderDetailId}/deliver-complete - 배송중 → 배송완료 처리 */
+    @PatchMapping("/{orderDetailId}/deliver-complete")
+    public ResponseEntity<ApiResponse<SellerDeliveryResponse>> completeDelivery(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderDetailId
+    ) {
+        Long userId = userDetails.getUser().getId();
+
+        SellerDeliveryResponse response =
+                sellerOrderService.completeDelivery(userId, orderDetailId);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

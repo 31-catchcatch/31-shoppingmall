@@ -65,9 +65,11 @@ public class CouponService {
     }
 
     /**
-     * 현재 사용 가능한 전체 쿠폰 목록 조회
+     * 마이페이지 '받기' 탭 - 로그인 사용자가 아직 받지 않은 발급 가능 쿠폰 목록 조회.
+     * 이미 발급받은 쿠폰은 제외하여, 목록에 뜨는 쿠폰은 모두 '받기' 가능하다.
      */
     public CouponListResponse getAvailableCoupons(
+            Long userId,
             int page,
             int size
     ) {
@@ -83,11 +85,7 @@ public class CouponService {
         LocalDateTime now = LocalDateTime.now();
 
         Page<Coupon> coupons = couponRepository
-                .findAllByActiveTrueAndValidFromLessThanEqualAndValidUntilGreaterThanEqual(
-                        now,
-                        now,
-                        pageable
-                );
+                .findClaimableByUser(userId, now, pageable);
 
         return CouponListResponse.from(coupons);
     }

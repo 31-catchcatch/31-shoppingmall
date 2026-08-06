@@ -5,6 +5,7 @@ import com.shoppingmall.domain.claim.dto.response.ClaimListResponse;
 import com.shoppingmall.domain.claim.dto.response.ClaimResponse;
 import com.shoppingmall.domain.claim.entity.Claim;
 import com.shoppingmall.domain.claim.entity.ClaimStatus;
+import com.shoppingmall.domain.claim.entity.ClaimType;
 import com.shoppingmall.domain.claim.repository.ClaimRepository;
 import com.shoppingmall.domain.order.entity.DeliveryStatus;
 import com.shoppingmall.domain.order.entity.OrderDetail;
@@ -82,6 +83,14 @@ public class ClaimService {
 
         Claim savedClaim = claimRepository.save(claim);
 
+        // 클레임 신청과 동시에 해당 주문 상품의 배송 상태도 신청 상태로 전환한다.
+        // (orderDetail은 영속 상태이므로 트랜잭션 커밋 시 변경분이 자동 반영된다.)
+        if (request.type() == ClaimType.RETURN) {
+            orderDetail.requestReturn();
+        } else if (request.type() == ClaimType.EXCHANGE) {
+            orderDetail.requestExchange();
+        }
+
         return ClaimResponse.from(savedClaim);
     }
 
@@ -144,9 +153,9 @@ public class ClaimService {
 
         boolean claimable =
                 status == DeliveryStatus.PAYMENT_COMPLETED
-                || status == DeliveryStatus.PREPARING
-                || status == DeliveryStatus.SHIPPING
-                || status == DeliveryStatus.DELIVERED;
+                        || status == DeliveryStatus.PREPARING
+                        || status == DeliveryStatus.SHIPPING
+                        || status == DeliveryStatus.DELIVERED;
 
         if (!claimable) {
             throw new CustomException(

@@ -1,7 +1,6 @@
 package com.shoppingmall.domain.seller.service;
 
 import com.shoppingmall.domain.qna.entity.Qna;
-import com.shoppingmall.domain.qna.entity.QnaAnswer;
 import com.shoppingmall.domain.qna.repository.QnaRepository;
 import com.shoppingmall.domain.seller.dto.request.SellerQnaAnswerRequest;
 import com.shoppingmall.domain.seller.dto.request.SellerQnaSearchRequest;
@@ -10,6 +9,8 @@ import com.shoppingmall.domain.seller.dto.response.SellerQnaResponse;
 import com.shoppingmall.domain.seller.entity.SellerApplication;
 import com.shoppingmall.domain.seller.entity.SellerApplicationStatus;
 import com.shoppingmall.domain.seller.repository.SellerApplicationRepository;
+import com.shoppingmall.domain.user.entity.User;
+import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class SellerQnaService {
 
     private final QnaRepository qnaRepository;
     private final SellerApplicationRepository sellerApplicationRepository;
+    private final UserRepository userRepository;
 
     /**
      * 판매자 상품에 등록된 Q&A 목록을 조회한다.
@@ -138,28 +140,14 @@ public class SellerQnaService {
 
         validateQnaOwnership(qna, seller);
 
-        QnaAnswer answer;
+        User answerer = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.USER_NOT_FOUND)
+                );
 
-        /*
-         * 기존 답변이 존재하면 수정한다.
-         */
-        if (qna.getAnswer() != null) {
-            answer = qna.getAnswer();
-            answer.updateContent(request.content());
+        qna.registerAnswer(request.content(), answerer);
 
-            /*
-             * 기존 답변이 없으면 새 답변을 등록한다.
-             */
-        } else {
-            answer = QnaAnswer.builder()
-                    .qna(qna)
-                    .content(request.content())
-                    .build();
-
-            qna.registerAnswer(answer);
-        }
-
-        return SellerQnaAnswerResponse.from(answer);
+        return SellerQnaAnswerResponse.from(qna);
     }
 
     /**

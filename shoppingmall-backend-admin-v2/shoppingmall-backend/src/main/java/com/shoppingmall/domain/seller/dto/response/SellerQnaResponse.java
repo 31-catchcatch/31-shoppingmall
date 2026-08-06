@@ -34,9 +34,9 @@ public record SellerQnaResponse(
                 qna.getContent(),
                 qna.isAnswered(),
                 qna.getCreatedAt(),
-                qna.getAnswer() == null
-                        ? null
-                        : SellerQnaAnswerResponse.from(qna.getAnswer())
+                qna.isAnswered()
+                        ? SellerQnaAnswerResponse.from(qna)
+                        : null
         );
     }
 }

@@ -40,6 +40,19 @@ file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
   base-url: /uploads
 
+payment:
+  toss:
+    # client-key 는 결제창을 띄우는 프론트에 그대로 노출되는 공개값이다.
+    # secret-key 는 서버 전용 비밀값 -> 로컬은 application-local.yml(gitignore),
+    # VM/클라우드는 반드시 환경변수로 주입할 것. VM 이미지 스냅샷에 파일째로 구워지면 시크릿이 유출된다.
+    client-key: ${TOSS_CLIENT_KEY:}
+    secret-key: ${TOSS_SECRET_KEY:}
+    base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+    # 토스가 결제 후 리다이렉트할 프론트 주소. 프론트에 빌드 스텝이 없어 값을 갈아끼울 수 없으므로
+    # 서버가 GET /api/v1/payments/config 로 내려준다. 환경이 바뀌면 이 값만 바꾸면 된다.
+    success-url: ${TOSS_SUCCESS_URL:http://192.168.10.12/payment-success.html}
+    fail-url: ${TOSS_FAIL_URL:http://192.168.10.12/payment-fail.html}
+
 logging:
   level:
     org.hibernate.SQL: debug

@@ -1,11 +1,14 @@
 package com.shoppingmall.domain.seller.controller;
 
 import com.shoppingmall.domain.seller.dto.request.SellerLoginRequest;
+import com.shoppingmall.domain.seller.dto.request.SellerSignupRequest;
 import com.shoppingmall.domain.seller.dto.response.SellerLoginResponse;
+import com.shoppingmall.domain.seller.dto.response.SellerSignupResponse;
 import com.shoppingmall.domain.seller.service.SellerAuthService;
 import com.shoppingmall.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * 판매자 인증 API
  *
  * 담당 API
+ * POST /api/v1/auth/seller/signup
  * POST /api/v1/auth/seller/login
  */
 @RestController
@@ -22,25 +26,22 @@ public class SellerAuthController {
 
     private final SellerAuthService sellerAuthService;
 
-    /**
-     * 판매자 로그인
-     *
-     * 처리 흐름
-     * 1. 로그인 ID와 비밀번호 형식 검증
-     * 2. 판매자 인증 서비스 호출
-     * 3. Access Token과 Refresh Token 반환
-     */
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<SellerSignupResponse>> signup(
+            @Valid @RequestBody SellerSignupRequest request
+    ) {
+        SellerSignupResponse response = sellerAuthService.signup(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<SellerLoginResponse>> login(
-            @Valid
-            @RequestBody
-            SellerLoginRequest request
+            @Valid @RequestBody SellerLoginRequest request
     ) {
-        SellerLoginResponse response =
-                sellerAuthService.login(request);
+        SellerLoginResponse response = sellerAuthService.login(request);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(response)
-        );
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

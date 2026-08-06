@@ -15,10 +15,12 @@ public class CartItemResponse {
     private final int price;       // 옵션이 적용된 상품 최종 개당 가격
     private final int quantity;    // 유저가 지정한 수량
     private final int totalPrice;  // price * quantity 자동 합산 결과
+    private final String thumbnailUrl; // 목록 썸네일 (없으면 null → 프론트가 회색 박스로 대체)
 
     @Builder
     public CartItemResponse(Long cartItemId, Long productId, String productName,
-                            Long optionId, String optionName, int price, int quantity) {
+                            Long optionId, String optionName, int price, int quantity,
+                            String thumbnailUrl) {
         this.cartItemId = cartItemId;
         this.productId = productId;
         this.productName = productName;
@@ -27,6 +29,7 @@ public class CartItemResponse {
         this.price = price;
         this.quantity = quantity;
         this.totalPrice = price * quantity;
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     public static CartItemResponse from(CartItem cartItem) {
@@ -45,6 +48,8 @@ public class CartItemResponse {
                 .optionName(cartItem.getProductOption().getOptionName())
                 .price(basePrice + optionAdditionalPrice)
                 .quantity(cartItem.getQuantity())
+                // 위에서 이미 getProduct() 를 쓰고 있어 프록시가 초기화된 상태라 추가 쿼리가 없다.
+                .thumbnailUrl(cartItem.getProduct().getThumbnailUrl())
                 .build();
     }
 }

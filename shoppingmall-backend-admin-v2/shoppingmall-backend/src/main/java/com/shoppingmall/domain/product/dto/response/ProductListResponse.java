@@ -9,7 +9,8 @@ public record ProductListResponse(
         int price,
         int discountRate,
         int finalPrice,
-        String thumbnailUrl
+        String thumbnailUrl,
+        String brandName
 ) {
     public static ProductListResponse from(Product product) {
         return new ProductListResponse(
@@ -18,7 +19,8 @@ public record ProductListResponse(
                 product.getPrice(),
                 product.getDiscountRate(),
                 product.getFinalPrice(),
-                product.getThumbnailUrl()
+                product.getThumbnailUrl(),
+                product.getBrand() != null ? product.getBrand().getName() : null
         );
     }
 }

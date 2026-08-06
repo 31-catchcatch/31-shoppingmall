@@ -22,5 +22,8 @@ public class AddressRequest {
 
     private String detailAddress;
 
+    @NotBlank(message = "우편번호는 필수입니다.")
+    private String zipCode;
+
     private boolean defaultAddress;
 }

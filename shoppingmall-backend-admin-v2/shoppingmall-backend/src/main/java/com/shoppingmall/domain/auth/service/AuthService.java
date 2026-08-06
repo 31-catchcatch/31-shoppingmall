@@ -108,6 +108,12 @@ public class AuthService {
 
         // Refresh Token Rotation: 재발급할 때마다 기존 토큰은 폐기하고 새 토큰으로 교체 (탈취 대비)
         refreshTokenRepository.delete(savedToken);
+
+        // 탈퇴(정지 포함, is_deleted 재사용) 계정은 재발급 자체를 막는다.
+        if (user.isDeleted()) {
+            throw new CustomException(ErrorCode.LOGIN_FAILED);
+        }
+
         return issueAndPersistTokens(user);
     }
 

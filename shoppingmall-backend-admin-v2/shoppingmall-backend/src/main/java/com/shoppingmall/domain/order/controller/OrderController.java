@@ -1,8 +1,11 @@
 package com.shoppingmall.domain.order.controller;
 
+import com.shoppingmall.domain.order.dto.request.OrderCancelRequest;
 import com.shoppingmall.domain.order.dto.request.OrderCreateRequest;
 import com.shoppingmall.domain.order.dto.response.CheckoutResponse;
+import com.shoppingmall.domain.order.dto.response.OrderDeliveryResponse;
 import com.shoppingmall.domain.order.dto.response.OrderListResponse;
+import com.shoppingmall.domain.order.dto.response.OrderReceiptResponse;
 import com.shoppingmall.domain.order.dto.response.OrderResponse;
 import com.shoppingmall.domain.order.entity.OrderStatus;
 import com.shoppingmall.domain.order.service.OrderService;
@@ -14,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /** API 명세서 "일반 사용자 - 주문/결제" 도메인 매핑 */
 @RestController
@@ -39,6 +44,22 @@ public class OrderController {
         OrderResponse response = orderService.placeOrder(userDetails.getUser().getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("주문이 정상적으로 생성되었습니다.", response));
+    }
+
+    /**
+     * POST /api/v1/orders/{orderId}/cancel - 결제 대기 주문 취소
+     *
+     * 결제창을 닫거나 결제에 실패했을 때 프론트가 호출한다. 주문 생성 시점에 미리 빠져나간
+     * 재고·쿠폰·포인트를 되돌린다. 이미 취소된 주문에 다시 호출해도 안전하다(멱등).
+     */
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderCancelRequest request) {
+        OrderResponse response =
+                orderService.cancelOrder(userDetails.getUser().getId(), orderId, request.reason());
+        return ResponseEntity.ok(ApiResponse.success("주문이 취소되었습니다.", response));
     }
 
     /** GET /api/v1/orders - 주문 내역 조회 (상태 필터 선택) */
@@ -70,8 +91,32 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success("구매 확정이 완료되었습니다.", null));
     }
 
-    // TODO POST /api/v1/orders/{orderId}/claims     - 교환/환불 신청 (claim 도메인의 ClaimController 참고)
-    // TODO GET  /api/v1/orders/{orderId}/delivery   - 배송 상태 조회
-    // TODO GET  /api/v1/orders/{orderId}/receipt    - 영수증 조회 (PG 연동 필요)
-    // TODO GET  /api/v1/orders/{orderId}/statement  - 거래명세서 조회
+    /** GET /api/v1/orders/{orderId}/delivery - 배송 상태 조회 */
+    @GetMapping("/{orderId}/delivery")
+    public ResponseEntity<ApiResponse<List<OrderDeliveryResponse>>> getDelivery(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderId) {
+        List<OrderDeliveryResponse> response = orderService.getDeliveryInfo(userDetails.getUser().getId(), orderId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /** GET /api/v1/orders/{orderId}/receipt - 영수증 조회 */
+    @GetMapping("/{orderId}/receipt")
+    public ResponseEntity<ApiResponse<OrderReceiptResponse>> getReceipt(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderId) {
+        OrderReceiptResponse response = orderService.getReceipt(userDetails.getUser().getId(), orderId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /** GET /api/v1/orders/{orderId}/statement - 거래명세서 조회 */
+    @GetMapping("/{orderId}/statement")
+    public ResponseEntity<ApiResponse<OrderResponse>> getStatement(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderId) {
+        OrderResponse response = orderService.getStatement(userDetails.getUser().getId(), orderId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // TODO POST /api/v1/orders/{orderId}/claims - 교환/환불 신청 (claim 도메인의 ClaimController 참고)
 }

@@ -48,7 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Long userId = jwtTokenProvider.getUserId(token);
 
             Optional<User> userOptional = userRepository.findById(userId);
-            // 탈퇴(soft delete) 등으로 토큰은 유효하지만 사용자가 사라진 경우 인증 미적용 -> 401 처리됨
+            // 탈퇴(soft delete, 관리자 정지 처리도 동일 플래그 재사용) 등으로 토큰은 유효하지만
+            // 사용자가 사라진 경우 인증 미적용 -> 401 처리됨.
+            // (매 요청마다 DB를 다시 조회하므로, 관리자가 정지 처리하면 기존 액세스 토큰도 즉시 무효화된다)
             if (userOptional.isPresent() && !userOptional.get().isDeleted()) {
                 CustomUserDetails userDetails = new CustomUserDetails(userOptional.get());
                 var authentication = new UsernamePasswordAuthenticationToken(

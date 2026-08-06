@@ -16,6 +16,8 @@ public record SellerOrderResponse(
         String deliveryStatus,
         String courierCompany,
         String trackingNumber,
+        String buyerName,
+        String buyerUsername,
         LocalDateTime orderedAt
 
 ) {
@@ -34,6 +36,8 @@ public record SellerOrderResponse(
                 orderDetail.getDeliveryStatus().name(),
                 orderDetail.getCourierCompany(),
                 orderDetail.getTrackingNumber(),
+                orderDetail.getOrder().getUser().getName(),
+                orderDetail.getOrder().getUser().getUsername(),
                 orderDetail.getCreatedAt()
         );
     }
