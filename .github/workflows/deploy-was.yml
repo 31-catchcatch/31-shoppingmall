@@ -52,8 +52,26 @@ jobs:
             --private-ip-address ${{ secrets.WAS_PRIVATE_IP }} \
             --remote-port 22 \
             --local-port 22222 > tunnel.log 2>&1 &
-          sleep 8
+          echo "터널 프로세스 PID: $!"
+
+          echo "포트 22222 오픈 대기 중 (최대 20초)..."
+          READY=false
+          for i in $(seq 1 20); do
+            if (echo > /dev/tcp/localhost/22222) 2>/dev/null; then
+              echo "터널 준비 완료 (${i}초)"
+              READY=true
+              break
+            fi
+            sleep 1
+          done
+
+          echo "=== tunnel.log 내용 ==="
           cat tunnel.log || true
+
+          if [ "$READY" = false ]; then
+            echo "터널이 20초 내에 준비되지 않았습니다."
+            exit 1
+          fi
 
       - name: SSH 설정 (호스트키 검증 우회, 터널 경유)
         run: |
