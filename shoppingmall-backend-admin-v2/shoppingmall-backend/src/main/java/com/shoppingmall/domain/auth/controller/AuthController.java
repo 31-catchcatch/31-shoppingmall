@@ -5,6 +5,7 @@ import com.shoppingmall.domain.auth.dto.response.*;
 import com.shoppingmall.domain.auth.service.AccountRecoveryService;
 import com.shoppingmall.domain.auth.service.AuthService;
 import com.shoppingmall.domain.auth.service.EmailVerificationService;
+import com.shoppingmall.domain.auth.dto.request.VerifyAccountRequest;
 import com.shoppingmall.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -91,6 +92,14 @@ public class AuthController {
     }
 
     /** 프론트(find-account.js) 경로에 맞춘 비밀번호 재설정. 이메일 인증 통과 후 새 비밀번호를 직접 지정 */
+    @PostMapping("/verify-account")
+    public ResponseEntity<ApiResponse<Void>> verifyAccount(
+            @Valid @RequestBody VerifyAccountRequest request) {
+        accountRecoveryService.verifyAccount(request);
+        return ResponseEntity.ok(
+                ApiResponse.success("확인되었습니다. 새 비밀번호를 입력해 주세요.", null));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {

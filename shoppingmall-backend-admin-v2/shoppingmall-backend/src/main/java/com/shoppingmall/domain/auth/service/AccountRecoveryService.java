@@ -2,6 +2,7 @@ package com.shoppingmall.domain.auth.service;
 
 import com.shoppingmall.domain.auth.dto.request.FindAccountRequest;
 import com.shoppingmall.domain.auth.dto.response.FindAccountResponse;
+import com.shoppingmall.domain.auth.dto.request.VerifyAccountRequest;
 import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
@@ -49,6 +50,19 @@ public class AccountRecoveryService {
      * POST /api/v1/auth/reset-password - 사용자가 새 비밀번호를 직접 지정하는 방식 (프론트 화면 이름 유지).
      * 기존 find-account(임시 비밀번호 메일 발송)와 달리, 이메일 인증을 통과한 화면에서 바로 새 비밀번호로 설정한다.
      */
+    /** 1단계: 아이디+이메일이 DB에 존재하는지 확인만 한다 (비밀번호는 바꾸지 않음). */
+
+    @Transactional(readOnly = true)
+    public void verifyAccount(VerifyAccountRequest request) {
+        String sql = "SELECT * FROM users WHERE username = '" + request.username()
+                + "' AND email = '" + request.email() + "' AND is_deleted = 0";
+        @SuppressWarnings("unchecked")
+        List<User> found = em.createNativeQuery(sql, User.class).getResultList();
+        found.stream().findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+
     @Transactional
     public void resetPasswordDirect(com.shoppingmall.domain.auth.dto.request.ResetPasswordRequest request) {
         String sql = "SELECT * FROM users WHERE username = '" + request.username()
