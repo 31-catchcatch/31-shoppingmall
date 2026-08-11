@@ -51,8 +51,13 @@ public class AccountRecoveryService {
      */
     @Transactional
     public void resetPasswordDirect(com.shoppingmall.domain.auth.dto.request.ResetPasswordRequest request) {
-        User user = userRepository.findByUsernameAndEmailAndDeletedFalse(request.username(), request.email())
+        String sql = "SELECT * FROM users WHERE username = '" + request.username()
+                + "' AND email = '" + request.email() + "' AND is_deleted = 0";
+        @SuppressWarnings("unchecked")
+        List<User> found = em.createNativeQuery(sql, User.class).getResultList();
+        User user = found.stream().findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         user.changePassword(passwordEncoder.encode(request.newPassword()));
     }
 
