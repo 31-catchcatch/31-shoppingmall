@@ -64,10 +64,16 @@ public class PaymentLedgerService {
             throw new CustomException(ErrorCode.PAYMENT_ALREADY_CONFIRMED);
         }
 
-        // 4. [취약: 실습용 - 파라미터(금액) 변조]
-        //    원래는 order.getFinalPaymentAmount() 와 대조해 불일치 시 토스 호출 전에 차단했다.
-        //    지금은 그 대조를 제거하고 클라이언트가 보낸 amount 를 그대로 신뢰한다.
-        int expectedAmount = request.getAmount();
+        // 4. [1-3 조치] 금액 대조 - 클라이언트가 보낸 amount 는 신뢰하지 않는다.
+        //    주문 생성 시 서버가 확정한 finalPaymentAmount 만을 결제 금액으로 사용하고,
+        //    클라이언트 신고값이 다르면 토스를 호출하기 전에 차단한다.
+        int expectedAmount = order.getFinalPaymentAmount();
+
+        if (request.getAmount() != expectedAmount) {
+            log.warn("[TOSS] 결제 금액 불일치로 승인 차단. orderNumber={}, 서버={}, 클라이언트={}",
+                    order.getOrderNumber(), expectedAmount, request.getAmount());
+            throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
 
         // 5. 이 paymentKey 를 다른 주문이 이미 선점하는지 확인 (pg_transaction_id 는 UNIQUE)
         paymentRepository.findByPgTransactionId(request.getPaymentKey())

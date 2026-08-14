@@ -122,22 +122,25 @@ public class OrderService {
                 throw new CustomException(ErrorCode.PRODUCT_NOT_ON_SALE);
             }
 
-            ProductOption option = null;
-            int optionAdditionalPrice = 0;
-            if (item.optionId() != null) {
-                option = product.getOptions().stream()
-                        .filter(o -> o.getId().equals(item.optionId()))
-                        .findFirst()
-                        .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
-
-                // 재고를 원자적으로 차감한다. 조건부 UPDATE(stock >= qty)라 동시 주문에도
-                // 오버셀링이 발생하지 않으며, 영향 행이 0이면 재고 부족으로 판정한다.
-                int decreased = productOptionRepository.decreaseStock(option.getId(), item.quantity());
-                if (decreased == 0) {
-                    throw new CustomException(ErrorCode.OUT_OF_STOCK);
-                }
-                optionAdditionalPrice = option.getAdditionalPrice();
+            // [1-3 조치] optionId 를 생략하면 옵션 소속 검증과 재고 차감을 통째로 건너뛰게 된다.
+            //            상품 등록 시 옵션이 최소 1개 강제되므로 null 은 정상 주문 경로가 아니다.
+            if (item.optionId() == null) {
+                throw new CustomException(ErrorCode.INVALID_INPUT);
             }
+
+            // 요청한 옵션이 "이 상품"의 옵션인지 확인한다 (다른 상품 옵션 끼워넣기 차단)
+            ProductOption option = product.getActiveOptions().stream()
+                    .filter(o -> o.getId().equals(item.optionId()))
+                    .findFirst()
+                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+
+            // 재고를 원자적으로 차감한다. 조건부 UPDATE(stock >= qty)라 동시 주문에도
+            // 오버셀링이 발생하지 않으며, 영향 행이 0이면 재고 부족으로 판정한다.
+            int decreased = productOptionRepository.decreaseStock(option.getId(), item.quantity());
+            if (decreased == 0) {
+                throw new CustomException(ErrorCode.OUT_OF_STOCK);
+            }
+            int optionAdditionalPrice = option.getAdditionalPrice();
 
             int unitPrice = product.getPrice() + optionAdditionalPrice;
 
@@ -151,7 +154,7 @@ public class OrderService {
             totalProductAmount += unitPrice * item.quantity();
 
             // 장바구니에서 담아뒀던 항목이면 주문 완료 후 정리 (장바구니에 없던 즉시구매는 그냥 무시됨)
-            Long optionId = option != null ? option.getId() : null;
+            Long optionId = option.getId();   // [1-3] option 은 항상 non-null
             cartItemRepository.findByUserAndProductIdAndProductOptionId(user, product.getId(), optionId)
                     .ifPresent(cartItemRepository::delete);
         }

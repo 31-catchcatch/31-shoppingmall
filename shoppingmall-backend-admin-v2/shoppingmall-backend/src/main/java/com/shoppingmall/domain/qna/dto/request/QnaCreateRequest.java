@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.qna.dto.request;
 
+import com.shoppingmall.global.validation.NoHtml;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -13,6 +15,7 @@ public record QnaCreateRequest(
                 max = 200,
                 message = "문의 제목은 200자 이하여야 합니다."
         )
+        @NoHtml   // [1-1]
         String title,
 
         @NotBlank(message = "문의 내용을 입력해 주세요.")
@@ -20,6 +23,7 @@ public record QnaCreateRequest(
                 max = 3000,
                 message = "문의 내용은 3,000자 이하여야 합니다."
         )
+        @NoHtml   // [1-1]
         String content,
 
         boolean secret

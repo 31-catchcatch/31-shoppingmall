@@ -1,7 +1,6 @@
 package com.shoppingmall.domain.payment.controller;
 
 import com.shoppingmall.domain.payment.dto.request.PaymentConfirmRequest;
-import com.shoppingmall.domain.payment.dto.request.PaymentVerifyRequest;
 import com.shoppingmall.domain.payment.dto.response.PaymentConfigResponse;
 import com.shoppingmall.domain.payment.dto.response.PaymentResponse;
 import com.shoppingmall.domain.payment.service.PaymentService;
@@ -39,8 +38,8 @@ public class PaymentController {
      * 토스 결제창이 successUrl 로 넘겨준 paymentKey/orderId/amount 를 받아
      * 서버가 토스에 직접 승인을 요청하고 결과를 확정한다.
      *
-     * 아래 /verify 는 결제창 없이 클라이언트 신고를 그대로 믿던 mock 경로다.
-     * 프론트가 /confirm 으로 완전히 넘어간 것을 확인한 뒤 함께 제거할 예정이다.
+     * [4-2 조치] 결제창 없이 클라이언트 신고를 그대로 믿던 mock 경로(/verify)는 제거되었다.
+     * 결제 승인은 PG(토스)에 직접 확인하는 이 경로로만 일원화한다.
      */
     @PostMapping("/confirm")
     public ResponseEntity<ApiResponse<PaymentResponse>> confirmPayment(
@@ -50,16 +49,5 @@ public class PaymentController {
         PaymentResponse response = paymentService.confirmPayment(userDetails.getUser().getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("결제 승인이 완료되었습니다.", response));
-    }
-
-    // PG 결제 완료 콜백 및 위조 결제 검증 승인 API (POST)
-    @PostMapping("/verify")
-    public ResponseEntity<ApiResponse<PaymentResponse>> verifyPayment(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody PaymentVerifyRequest request) {
-
-        PaymentResponse response = paymentService.verifyAndSavePayment(userDetails.getUser().getId(), request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("결제 내역 검증 및 승인이 성공적으로 완료되었습니다.", response));
     }
 }

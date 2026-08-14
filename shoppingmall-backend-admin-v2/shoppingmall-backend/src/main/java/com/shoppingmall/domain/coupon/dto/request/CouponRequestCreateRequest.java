@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.coupon.dto.request;
 
+import com.shoppingmall.global.validation.NoHtml;
+
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -12,9 +14,11 @@ public record CouponRequestCreateRequest(
 
         @NotBlank(message = "쿠폰명을 입력해 주세요.")
         @Size(max = 100)
+        @NoHtml   // [1-1]
         String couponName,
 
         @NotBlank(message = "할인 방식을 입력해 주세요.")
+        @Pattern(regexp = "^(FIXED_AMOUNT|PERCENTAGE)$", message = "할인 방식이 올바르지 않습니다.")   // [1-1]
         String discountType,
 
         @NotNull(message = "할인 값을 입력해 주세요.")

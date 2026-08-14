@@ -55,7 +55,7 @@ public class Payment extends BaseTimeEntity {
 
     // ===== 토스 결제 승인(POST /payments/confirm) 전용 =====
     //
-    // 위 @Builder 생성자는 기존 mock 경로(/payments/verify)가 쓰고 있어 손대지 않는다.
+    // [4-2 조치] mock 경로(/payments/verify) 제거에 따라 위 @Builder 생성자의 외부 사용처는 없어졌다.
     // 토스 경로는 "승인 요청 전에 READY 로 먼저 저장"해야 하므로 아래 팩토리/전이 메서드를 쓴다.
 
     /**

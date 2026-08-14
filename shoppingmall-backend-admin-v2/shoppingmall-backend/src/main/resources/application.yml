@@ -5,8 +5,8 @@ spring:
   datasource:
     # infra 가이드 기준 db-01 = 192.168.10.10 / DB명 appdb
     url: jdbc:mysql://${DB_HOST:192.168.10.10}:3306/appdb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${DB_USERNAME:appuser}
-    password: ${DB_PASSWORD:}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -22,6 +22,7 @@ spring:
 
   servlet:
     multipart:
+      # 파일 업로드 상한 (JSON 본문 상한은 아래 server.tomcat 에서 별도로 낮춘다 - [1-6 조치])
       max-file-size: 20MB
       max-request-size: 20MB
 
@@ -30,15 +31,41 @@ server:
   servlet:
     context-path: /
 
+  # [1-6 조치] 요청 크기 제한. JSON 본문(2MB)과 파일 업로드(20MB)를 분리한다.
+  max-http-request-header-size: 16KB
+  tomcat:
+    max-http-form-post-size: 2MB
+    max-swallow-size: 2MB
+
+  # [6-1 조치] 오류 응답에 내부 정보(예외 메시지·스택트레이스·클래스명)를 담지 않는다.
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+    whitelabel:
+      enabled: false
+
 jwt:
+  # ⚠️ [5-1][4-2 조치] 운영에서는 반드시 환경변수로 주입할 것.
+  #    기본값이 그대로 쓰이면 소스에 공개된 문자열이 서명 키가 되어 토큰 위조가 가능하다.
+  #    openssl rand -base64 48
   secret: ${JWT_SECRET:CHANGE_ME_TO_A_LONG_RANDOM_SECRET_AT_LEAST_256BIT}
-  access-token-validity-ms: 3600000        # 1시간
-  refresh-token-validity-ms: 1209600000    # 14일
+  access-token-validity-ms: 900000         # [4-2 조치] 1시간 -> 15분 (유출 시 노출 창 축소)
+  refresh-token-validity-ms: 604800000     # [4-2 조치] 14일 -> 7일
 
 file:
-  # was-01 로컬 디스크 경로. 배포 시 충분한 용량이 있는 경로로 변경 (S3 도입 전까지 임시)
-  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  # [2-1 조치] 웹 애플리케이션 디렉터리 하위(./uploads)가 아닌 별도 경로로 분리한다.
+  #            운영 서버에서는 이 디렉터리의 실행 권한을 제거할 것 (chmod -R a-x).
+  upload-dir: ${FILE_UPLOAD_DIR:/var/catchcatch/uploads}
   base-url: /uploads
+
+# [3-2 조치] 로그인 실패 횟수 제한
+# SYSTEM 진단 W-04(5회 이하) 기준과 정렬했다.
+security:
+  login:
+    max-attempts: 5
+    lock-minutes: 10
 
 payment:
   toss:
@@ -53,7 +80,10 @@ payment:
     success-url: ${TOSS_SUCCESS_URL:http://192.168.10.12/payment-success.html}
     fail-url: ${TOSS_FAIL_URL:http://192.168.10.12/payment-fail.html}
 
+# [5-1 조치] 운영에서는 SQL 전문이 로그에 남지 않도록 낮춘다.
+#            개발 환경은 application-local.yml 에서 debug 로 덮어쓸 것.
 logging:
   level:
-    org.hibernate.SQL: debug
-    com.shoppingmall: debug
+    root: info
+    org.hibernate.SQL: warn
+    com.shoppingmall: info

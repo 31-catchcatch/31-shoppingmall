@@ -1,11 +1,14 @@
 package com.shoppingmall.domain.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.shoppingmall.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 /**
  * DB 정의서 'users' 테이블 매핑.
@@ -25,6 +28,8 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
+    /** [5-2 조치] 어떤 경로로도 직렬화되지 않도록 못을 박는다 (근본 조치는 응답 DTO 사용). */
+    @JsonIgnore
     @Column(nullable = false, length = 255)
     private String password; // BCrypt 해시
 
@@ -47,6 +52,17 @@ public class User extends BaseTimeEntity {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
+    // ===== [3-2 조치] 로그인 실패 횟수 제한 =====
+
+    @Column(name = "login_fail_count", nullable = false)
+    private int loginFailCount;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @Builder
     public User(String username, String password, String name, String email,
                 String phoneNumber, Role role) {
@@ -58,6 +74,29 @@ public class User extends BaseTimeEntity {
         this.role = role == null ? Role.USER : role;
         this.point = 0;
         this.deleted = false;
+        this.loginFailCount = 0;   // [3-2]
+    }
+
+    // ===== [3-2 조치] 로그인 실패 횟수 관련 도메인 메서드 =====
+
+    /** 현재 잠금 상태인지 판정한다. */
+    public boolean isLocked() {
+        return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());
+    }
+
+    /** 로그인 실패 1건 반영. 임계값에 도달하면 잠근다. */
+    public void recordLoginFailure(int threshold, int lockMinutes) {
+        this.loginFailCount++;
+        if (this.loginFailCount >= threshold) {
+            this.lockedUntil = LocalDateTime.now().plusMinutes(lockMinutes);
+        }
+    }
+
+    /** 로그인 성공 시 카운터를 초기화한다. */
+    public void recordLoginSuccess() {
+        this.loginFailCount = 0;
+        this.lockedUntil = null;
+        this.lastLoginAt = LocalDateTime.now();
     }
 
     public void changePassword(String encodedPassword) {

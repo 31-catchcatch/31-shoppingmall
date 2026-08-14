@@ -8,6 +8,7 @@ import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
+import com.shoppingmall.global.security.LoginAttemptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class AdminAuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;   // [3-2 조치]
     private final AuthService authService; // 토큰 발급/저장 로직 재사용
 
     @Transactional
@@ -35,7 +37,11 @@ public class AdminAuthService {
         User user = userRepository.findByUsernameAndDeletedFalse(request.username())
                 .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
 
+        // [3-2 조치] 잠금 확인 -> 비밀번호 대조 -> 결과 기록
+        loginAttemptService.assertNotLocked(user);
+
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            loginAttemptService.onFailure(user.getId());
             throw new CustomException(ErrorCode.LOGIN_FAILED);
         }
 
@@ -43,6 +49,7 @@ public class AdminAuthService {
             throw new CustomException(ErrorCode.WRONG_LOGIN_ENDPOINT);
         }
 
+        loginAttemptService.onSuccess(user.getId());   // [3-2 조치]
         return authService.issueAndPersistTokens(user);
     }
 }

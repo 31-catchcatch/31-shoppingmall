@@ -13,6 +13,8 @@ public enum ErrorCode {
     // Common
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON-001", "입력값이 올바르지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-002", "서버 내부 오류가 발생했습니다."),
+    // [3-2 조치] IP 단위 요청 제한
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "COMMON-003", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
 
     // Auth / User
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "AUTH-001", "이미 사용 중인 아이디입니다."),
@@ -98,7 +100,17 @@ public enum ErrorCode {
     PAYMENT_GATEWAY_ERROR(HttpStatus.BAD_GATEWAY, "PAYMENT-005", "결제 서버와 통신하지 못했습니다. 잠시 후 다시 시도해주세요."),
 
     // ===== Settlement =====
-    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SETTLEMENT-001", "존재하지 않는 정산 내역입니다.");
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SETTLEMENT-001", "존재하지 않는 정산 내역입니다."),
+
+    // [2-1 조치] 파일 업로드 검증
+    INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "FILE-001", "허용되지 않은 파일 형식입니다."),
+    INVALID_FILE_CONTENT(HttpStatus.BAD_REQUEST, "FILE-002", "파일 내용이 형식과 일치하지 않습니다."),
+    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE-003", "파일 크기가 허용 범위를 초과했습니다."),
+
+    // [3-2 조치] 로그인 실패 횟수 제한
+    // ⚠️ 메시지에 남은 시도 횟수나 계정 존재 여부를 담지 않는다 (3-3 계정 정보 파악 가능성 유지)
+    ACCOUNT_LOCKED(HttpStatus.LOCKED, "AUTH-013",
+            "로그인 실패 횟수를 초과하여 계정이 잠겼습니다. 잠시 후 다시 시도해 주세요.");
 
     private final HttpStatus status;
     private final String code;

@@ -11,6 +11,7 @@ import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
+import com.shoppingmall.global.security.LoginAttemptService;
 import com.shoppingmall.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +31,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;   // [3-2 조치]
     private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
@@ -59,7 +61,11 @@ public class AuthService {
         User user = userRepository.findByUsernameAndDeletedFalse(request.username())
                 .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
 
+        // [3-2 조치] 잠금 확인 -> 비밀번호 대조 -> 결과 기록
+        loginAttemptService.assertNotLocked(user);
+
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            loginAttemptService.onFailure(user.getId());
             throw new CustomException(ErrorCode.LOGIN_FAILED);
         }
 
@@ -69,6 +75,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.WRONG_LOGIN_ENDPOINT);
         }
 
+        loginAttemptService.onSuccess(user.getId());   // [3-2 조치]
         return issueAndPersistTokens(user);
     }
 

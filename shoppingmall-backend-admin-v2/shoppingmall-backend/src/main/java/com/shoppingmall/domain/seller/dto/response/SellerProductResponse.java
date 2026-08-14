@@ -38,9 +38,7 @@ public record SellerProductResponse(
         // 재고는 옵션 단위로 관리된다. 삭제되지 않은 옵션들의 재고 합을 totalStock 으로,
         // 살아있는 옵션이 있으면서 재고 합이 0인 경우만 품절(soldOut)로 본다.
         // (옵션이 아예 없는 상품은 재고 개념이 없으므로 soldOut=false, totalStock=0)
-        List<ProductOption> activeOptions = product.getOptions().stream()
-                .filter(option -> !option.isDeleted())
-                .toList();
+        List<ProductOption> activeOptions = product.getActiveOptions();
         int totalStock = activeOptions.stream()
                 .mapToInt(ProductOption::getStockQuantity)
                 .sum();

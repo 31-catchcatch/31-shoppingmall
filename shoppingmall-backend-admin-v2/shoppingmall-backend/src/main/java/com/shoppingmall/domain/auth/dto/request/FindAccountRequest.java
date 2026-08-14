@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.auth.dto.request;
 
+import jakarta.validation.constraints.Pattern;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,8 +13,15 @@ import jakarta.validation.constraints.NotNull;
  */
 public record FindAccountRequest(
         @NotNull FindAccountType type,
+
+        // [1-2 조치] positive 필터링. type 에 따라 둘 중 하나만 오므로 빈 값(^$)도 허용한다.
+        @Pattern(regexp = "^$|^[가-힣A-Za-z ]{2,20}$", message = "이름 형식이 올바르지 않습니다.")
         String name,
+
+        @Pattern(regexp = "^$|^[A-Za-z0-9_-]{4,50}$",
+                 message = "아이디는 영문·숫자·언더바·하이픈 4~50자여야 합니다.")
         String username,
+
         @NotBlank @Email String email
 ) {
     public enum FindAccountType { ID, PASSWORD }

@@ -15,6 +15,7 @@ import com.shoppingmall.domain.user.entity.User;
 import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
+import com.shoppingmall.global.security.LoginAttemptService;
 import com.shoppingmall.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,7 @@ public class SellerAuthService {
     private final SellerApplicationRepository sellerApplicationRepository;
 
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;   // [3-2 조치]
     private final JwtTokenProvider jwtTokenProvider;
 
     /**
@@ -132,12 +134,16 @@ public class SellerAuthService {
         User user = userRepository.findByUsernameAndDeletedFalse(request.loginId())
                 .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
 
+        // [3-2 조치] 잠금 확인 -> 비밀번호 대조 -> 결과 기록
+        loginAttemptService.assertNotLocked(user);
+
         boolean passwordMatches = passwordEncoder.matches(
                 request.password(),
                 user.getPassword()
         );
 
         if (!passwordMatches) {
+            loginAttemptService.onFailure(user.getId());
             throw new CustomException(ErrorCode.LOGIN_FAILED);
         }
 
@@ -145,6 +151,8 @@ public class SellerAuthService {
                 .orElseThrow(() -> new CustomException(ErrorCode.SELLER_NOT_APPROVED));
 
         validateSellerStatus(seller);
+
+        loginAttemptService.onSuccess(user.getId());   // [3-2 조치]
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "ROLE_SELLER");
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "ROLE_SELLER");

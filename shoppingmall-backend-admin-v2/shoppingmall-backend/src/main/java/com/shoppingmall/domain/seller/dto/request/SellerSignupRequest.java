@@ -1,5 +1,8 @@
 package com.shoppingmall.domain.seller.dto.request;
 
+import com.shoppingmall.global.validation.NoHtml;
+import com.shoppingmall.global.validation.ValidPassword;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -17,14 +20,17 @@ public record SellerSignupRequest(
 
         @NotBlank(message = "아이디를 입력해 주세요.")
         @Size(max = 50, message = "아이디는 50자 이하여야 합니다.")
+        @Pattern(regexp = "^[A-Za-z0-9_-]{4,50}$",                                              // [1-2]
+                 message = "아이디는 영문·숫자·언더바·하이픈 4~50자여야 합니다.")
         String username,
 
         @NotBlank(message = "비밀번호를 입력해 주세요.")
-        @Size(min = 8, max = 100, message = "비밀번호는 8자 이상이어야 합니다.")
+        @ValidPassword                                                               // [3-1]
         String password,
 
         @NotBlank(message = "이름을 입력해 주세요.")
         @Size(max = 20, message = "이름은 20자 이하여야 합니다.")
+        @NoHtml                                                                      // [1-1]
         String name,
 
         @NotBlank(message = "이메일을 입력해 주세요.")
@@ -38,6 +44,7 @@ public record SellerSignupRequest(
 
         @NotBlank(message = "상호명을 입력해 주세요.")
         @Size(max = 100, message = "상호명은 100자 이하여야 합니다.")
+        @NoHtml                                                                      // [1-1]
         String businessName,
 
         @NotBlank(message = "사업자등록번호를 입력해 주세요.")
@@ -46,6 +53,7 @@ public record SellerSignupRequest(
 
         @NotBlank(message = "대표자명을 입력해 주세요.")
         @Size(max = 50, message = "대표자명은 50자 이하여야 합니다.")
+        @NoHtml                                                                      // [1-1]
         String representativeName,
 
         @NotBlank(message = "담당자 연락처를 입력해 주세요.")
@@ -54,6 +62,7 @@ public record SellerSignupRequest(
 
         @NotBlank(message = "사업장 주소를 입력해 주세요.")
         @Size(max = 255)
+        @NoHtml                                                                      // [1-1]
         String businessAddress,
 
         @NotBlank(message = "사업자등록증 파일 URL을 입력해 주세요.")

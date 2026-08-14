@@ -31,7 +31,7 @@ public record ProductDetailResponse(
                 product.getDescription(),
                 product.getThumbnailUrl(),
                 product.getImages().stream().map(img -> img.getImageUrl()).toList(),
-                product.getOptions().stream().map(OptionResponse::from).toList()
+                product.getActiveOptions().stream().map(OptionResponse::from).toList()
         );
     }
 
