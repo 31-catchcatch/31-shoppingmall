@@ -1,0 +1,28 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### VS Code ###
+.vscode/
+
+### Mac ###
+.DS_Store
+
+### 로컬 전용 설정 (DB 비밀번호, JWT 시크릿 등 실제 값이 들어가는 파일은 절대 커밋 금지) ###
+application-local.yml
+.env
+
+### 업로드 산출물 (상품 이미지 등 런타임 생성물 - 소스 아님) ###
+uploads/

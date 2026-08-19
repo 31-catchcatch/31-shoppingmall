@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'war' // was-01(Tomcat 10.1)에 외부 배포하기 위한 WAR 패키징
+    id 'org.springframework.boot' version '3.3.4'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.shoppingmall'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        // Tomcat 10.1 은 Jakarta EE 9+ 기준이라 Java 17 이상 + Spring Boot 3.x 필요
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Web / MVC
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // [1-1 조치] HTML 새니타이즈 / 검증 (보고서 권고 AntiSamy 의 동등 기능)
+    implementation 'org.jsoup:jsoup:1.18.1'
+
+    // [3-2 조치] IP 단위 로그인 시도 카운터 (TTL 있는 인메모리 캐시)
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
+    // JPA (Hibernate) - 영속성 계층
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Security + JWT
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // 외부 Tomcat(WAS-01)에 WAR로 배포 -> 내장 톰캣은 컴파일 전용으로만 사용
+    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+
+    // DB Driver
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// 배포 시 was-01 /opt/tomcat/webapps/ROOT.war 로 교체하기 위해 파일명 고정
+tasks.named('bootWar') {
+    archiveFileName = 'ROOT.war'
+}
+
+// Windows 콘솔 한글 로그 깨짐 방지 (JDK 17은 UTF-8 기본값이 강제되지 않음)
+tasks.named('bootRun') {
+    jvmArgs = ['-Dfile.encoding=UTF-8']
+}
