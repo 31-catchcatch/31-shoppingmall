@@ -62,4 +62,19 @@ public class Banner {
     void prePersist() {
         this.createdAt = LocalDateTime.now();
     }
+    public void update(String title, String imageUrl, String linkUrl, Integer sortOrder,
+                       boolean active, LocalDateTime startAt, LocalDateTime endAt) {
+        this.title = title;
+        this.imageUrl = imageUrl;
+        this.linkUrl = linkUrl;
+        this.sortOrder = sortOrder == null ? 0 : sortOrder;
+        this.active = active;
+        this.startAt = startAt;
+        this.endAt = endAt;
+    }
+
+    /** 노출 순서 재정렬. int / Integer 양쪽 호출을 모두 받는다. */
+    public void changeSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder == null ? 0 : sortOrder;
+    }
 }

@@ -32,7 +32,7 @@ import java.util.Map;
 public class TossPaymentClient {
 
     private static final String CONFIRM_PATH = "/v1/payments/confirm";
-
+    private static final String CANCEL_PATH  = "/v1/payments/{paymentKey}/cancel";
     private final RestClient restClient;
     private final String authorizationHeader;
     private final ObjectMapper objectMapper;
@@ -84,7 +84,32 @@ public class TossPaymentClient {
             throw TossPaymentException.networkError(e);
         }
     }
-
+    /**
+     * 승인된 결제를 전액 취소한다. 금액 불일치를 감지했을 때 호출한다.
+     *
+     * <p>멱등키를 paymentKey 에서 파생시켜, 재시도해도 이중 취소 요청이 되지 않게 한다.
+     *
+     * @throws TossPaymentException 토스가 거절했거나 통신 자체가 실패한 경우
+     */
+    public void cancel(String paymentKey, String cancelReason) {
+        try {
+            restClient.post()
+                    .uri(CANCEL_PATH, paymentKey)
+                    .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                    .header("Idempotency-Key", "cancel-" + paymentKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("cancelReason", cancelReason))
+                    .retrieve()
+                    .onStatus(status -> status.isError(), (request, response) -> {
+                        throw toException(response.getStatusCode().value(), readBody(response.getBody()));
+                    })
+                    .toBodilessEntity();
+  
+        } catch (ResourceAccessException e) {
+            log.error("[TOSS] 결제 취소 통신 실패. paymentKey={}", paymentKey, e);
+            throw TossPaymentException.networkError(e);
+        }
+    }
     /** 같은 주문의 재시도가 항상 같은 키를 쓰도록 orderId 에서 파생시킨다 (최대 300자 제한 내). */
     private String idempotencyKey(String orderId) {
         return "confirm-" + orderId;

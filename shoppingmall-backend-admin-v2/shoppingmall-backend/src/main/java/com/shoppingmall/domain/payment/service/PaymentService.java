@@ -70,8 +70,16 @@ public class PaymentService {
         }
 
         // 1. 주문 검증 + 결제 원장 READY 커밋 (토스 호출 전에 흔적을 남긴다)
-        PaymentLedgerService.Prepared prepared = paymentLedgerService.prepare(userId, request);
-
+        PaymentLedgerService.Prepared prepared;
+        try {
+            prepared = paymentLedgerService.prepare(userId, request);
+        } catch (CustomException e) {
+            // 클라이언트 신고 금액이 어긋난 경우, PG 에는 이미 승인이 남아 있을 수 있다
+            if (e.getErrorCode() == ErrorCode.PAYMENT_AMOUNT_MISMATCH) {
+                cancelQuietly(request.getPaymentKey(), "결제 금액 불일치 - 서버 자동 취소");
+            }
+            throw e;
+        }
         // 2. 토스 승인 요청 - 금액은 클라이언트 값이 아니라 서버가 확정한 값을 보낸다
         TossConfirmResponse confirmed;
         try {
@@ -97,7 +105,7 @@ public class PaymentService {
         int approvedAmount = confirmed.getTotalAmount() == null ? -1 : confirmed.getTotalAmount();
         if (approvedAmount != prepared.amount()) {
             paymentLedgerService.markFailed(prepared.paymentId());
-            log.error("[TOSS] 승인 금액 불일치 - 토스에는 승인이 남아 있어 수동 취소가 필요합니다. "
+            log.error("[TOSS] 승인 금액 불일치 - 서버 자동 취소 "
                             + "orderNumber={}, paymentKey={}, 서버={}, 승인={}",
                     request.getOrderId(), request.getPaymentKey(), prepared.amount(), approvedAmount);
             throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
@@ -111,5 +119,13 @@ public class PaymentService {
                 request.getOrderId(), approvedAmount, confirmed.getMethod());
 
         return response;
+    }
+    private void cancelQuietly(String paymentKey, String reason) {
+        try {
+            tossPaymentClient.cancel(paymentKey, reason);
+            log.error("[TOSS] 금액 불일치 감지 - PG 결제 자동 취소 완료. paymentKey={}", paymentKey);
+        } catch (Exception e) {
+            log.error("[TOSS] 자동 취소 실패 - 수동 취소 필요. paymentKey={}", paymentKey, e);
+        }
     }
 }

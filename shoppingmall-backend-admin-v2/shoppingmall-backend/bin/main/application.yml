@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: shoppingmall-backend
+
+  datasource:
+    # infra 가이드 기준 db-01 = 192.168.10.10 / DB명 appdb
+    url: jdbc:mysql://${DB_HOST:192.168.10.10}:3306/appdb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME:appuser}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # DB 정의서 기준으로 스키마가 이미 존재/관리되므로 자동 변경 금지.
+      # 로컬에서 테이블을 아직 안 만들었다면 최초 1회만 'update'로 띄운 뒤 'validate'로 되돌릴 것.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+    open-in-view: false
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+server:
+  port: 8080  # was-01 Tomcat 포트 (infra 가이드 5번 방화벽 규칙과 동일해야 함)
+  servlet:
+    context-path: /
+
+jwt:
+  secret: ${JWT_SECRET:CHANGE_ME_TO_A_LONG_RANDOM_SECRET_AT_LEAST_256BIT}
+  access-token-validity-ms: 3600000        # 1시간
+  refresh-token-validity-ms: 1209600000    # 14일
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    com.shoppingmall: debug

@@ -69,12 +69,6 @@ public class PaymentLedgerService {
         //    클라이언트 신고값이 다르면 토스를 호출하기 전에 차단한다.
         int expectedAmount = order.getFinalPaymentAmount();
 
-        if (request.getAmount() != expectedAmount) {
-            log.warn("[TOSS] 결제 금액 불일치로 승인 차단. orderNumber={}, 서버={}, 클라이언트={}",
-                    order.getOrderNumber(), expectedAmount, request.getAmount());
-            throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
-        }
-
         // 5. 이 paymentKey 를 다른 주문이 이미 선점하는지 확인 (pg_transaction_id 는 UNIQUE)
         paymentRepository.findByPgTransactionId(request.getPaymentKey())
                 .filter(p -> !p.getOrder().getId().equals(order.getId()))

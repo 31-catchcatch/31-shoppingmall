@@ -40,6 +40,11 @@ public enum ErrorCode {
     PRODUCT_NOT_ON_SALE(HttpStatus.CONFLICT, "PRODUCT-004", "현재 판매중지된 상품입니다."),
     OUT_OF_STOCK(HttpStatus.CONFLICT, "PRODUCT-005", "재고가 부족합니다."),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW-001", "이미 리뷰를 작성한 주문입니다."),
+        
+    // Banner
+    BANNER_NOT_FOUND(HttpStatus.NOT_FOUND, "BANNER-001", "존재하지 않는 배너입니다."),
+    INVALID_BANNER_PERIOD(HttpStatus.BAD_REQUEST, "BANNER-002", "배너 노출 종료일은 시작일보다 뒤여야 합니다."),
+    INVALID_BANNER_URL(HttpStatus.BAD_REQUEST, "BANNER-003", "허용되지 않은 URL 형식입니다."),
 
     // ===== Seller (sell 추가) =====
     SELLER_NOT_FOUND(HttpStatus.NOT_FOUND, "SELLER-001", "판매자를 찾을 수 없습니다."),
@@ -62,6 +67,8 @@ public enum ErrorCode {
     // ===== Order (sell 추가) =====
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, "ORDER-001", "현재 주문 상태에서는 배송 처리를 할 수 없습니다."),
     ORDER_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "ORDER-002", "결제 대기 중인 주문만 취소할 수 있습니다."),
+        ORDER_DRAFT_EXPIRED(HttpStatus.BAD_REQUEST, "ORDER-020", "주문 정보가 만료되었습니다. 상품을 다시 선택해 주세요."),
+    ORDER_ITEM_REQUIRED(HttpStatus.BAD_REQUEST, "ORDER-021", "주문할 상품이 없습니다."),
 
     // ===== Claim (sell 추가) =====
     INVALID_CLAIM_STATUS(HttpStatus.BAD_REQUEST, "CLAIM-001", "현재 상태에서는 클레임을 신청하거나 변경할 수 없습니다."),
