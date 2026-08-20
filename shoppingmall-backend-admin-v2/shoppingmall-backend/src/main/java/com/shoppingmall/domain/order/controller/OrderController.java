@@ -2,6 +2,8 @@ package com.shoppingmall.domain.order.controller;
 
 import com.shoppingmall.domain.order.dto.request.OrderCancelRequest;
 import com.shoppingmall.domain.order.dto.request.OrderCreateRequest;
+import com.shoppingmall.domain.order.dto.request.OrderPrepareRequest;
+import com.shoppingmall.domain.order.dto.response.OrderDraftResponse;
 import com.shoppingmall.domain.order.dto.response.CheckoutResponse;
 import com.shoppingmall.domain.order.dto.response.OrderDeliveryResponse;
 import com.shoppingmall.domain.order.dto.response.OrderListResponse;
@@ -33,6 +35,24 @@ public class OrderController {
     public ResponseEntity<ApiResponse<CheckoutResponse>> getCheckout(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         CheckoutResponse response = orderService.getCheckoutData(userDetails.getUser().getId());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /** POST /api/v1/orders/prepare - [1-3 조치] 주문서 진입. 서버가 주문 대상·금액을 확정한다. */
+    @PostMapping("/prepare")
+    public ResponseEntity<ApiResponse<OrderDraftResponse>> prepareOrder(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody OrderPrepareRequest request) {
+        OrderDraftResponse response = orderService.prepareOrder(userDetails.getUser().getId(), request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /** GET /api/v1/orders/draft/{draftId} - 주문서 새로고침용 조회 */
+    @GetMapping("/draft/{draftId}")
+    public ResponseEntity<ApiResponse<OrderDraftResponse>> getDraft(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String draftId) {
+        OrderDraftResponse response = orderService.getDraft(userDetails.getUser().getId(), draftId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
