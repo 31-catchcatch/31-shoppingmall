@@ -17,7 +17,13 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * /send 는 다른 도메인 서비스가 NotificationService 를 직접 호출하는 게 기본 경로이고,
- * 이 컨트롤러의 /send 는 수동 트리거/테스트 용도로만 남겨둠.
+ * 이 컨트롤러의 /send 는 관리자 화면(쿠폰 심사 결과 통보)에서 쓰는 수동 트리거다.
+ *
+ * <p><b>[4-5 조치]</b> 대상 사용자를 요청 본문의 userId 로 지정하는 구조라, 로그인만 하면
+ * 누구나 임의 사용자에게 알림을 보낼 수 있었다(피싱 유포 경로). SecurityConfig 에서
+ * 이 경로만 ADMIN 으로 제한한다 — 권한 규칙을 한 곳에서 보게 하려고 어노테이션 대신
+ * SecurityConfig 에 두었다.
+ *
  * GET(목록)/PATCH(읽음처리)는 API 명세서 "일반 사용자 - 마이페이지" 매핑 (로그인 필요, SecurityConfig 기본 규칙 적용).
  */
 @RestController

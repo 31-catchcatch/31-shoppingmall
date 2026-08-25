@@ -2,8 +2,11 @@ package com.shoppingmall.domain.admin.controller;
 
 import com.shoppingmall.domain.admin.service.AdminAuthService;
 import com.shoppingmall.domain.auth.dto.request.LoginRequest;
+import com.shoppingmall.domain.auth.dto.response.LoginResponse;
 import com.shoppingmall.domain.auth.dto.response.TokenResponse;
 import com.shoppingmall.global.common.ApiResponse;
+import com.shoppingmall.global.security.cookie.AuthCookieFactory;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +27,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
+    private final AuthCookieFactory authCookieFactory;   // [4-1 조치]
 
+    /**
+     * [4-1 조치] 관리자도 일반 사용자와 같은 인증 쿠키를 쓴다.
+     * 한 브라우저에서 관리자와 일반 계정을 동시에 유지할 수는 없게 되며(마지막 로그인만 유효),
+     * 이는 쿠키 통합에 따른 의도된 동작이다.
+     */
     @PostMapping("/users")
-    public ResponseEntity<ApiResponse<TokenResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(adminAuthService.login(request)));
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request,
+                                                            HttpServletResponse response) {
+        TokenResponse tokens = adminAuthService.login(request);
+        authCookieFactory.writeLoginCookies(response, tokens.accessToken(), tokens.refreshToken());
+        // [4-1 조치 · 3단계] 응답 본문에서 토큰 제거. 인증은 Set-Cookie 로만 전달된다.
+        return ResponseEntity.ok(ApiResponse.success(LoginResponse.from(tokens)));
     }
 }

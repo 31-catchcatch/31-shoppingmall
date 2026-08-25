@@ -63,6 +63,14 @@ public class User extends BaseTimeEntity {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    // ===== [4-2 조치] 로그아웃 시 Access Token 무효화 =====
+    //
+    // 무효화 기준 시각은 여기(users.token_invalidated_at 컬럼)에 두지 않는다.
+    // 이 기록의 수명은 Access Token 유효기간(15분)이면 충분한 임시 정보라서,
+    // 스키마를 늘리는 대신 TokenInvalidationRegistry 가 메모리로 들고 있다.
+    // ⚠️ 여기에 필드를 되살리면 ddl-auto: update 로 구동되는 was-01 이
+    //    기동만으로 컬럼을 다시 만든다. 그게 이 방식을 택한 이유다.
+
     @Builder
     public User(String username, String password, String name, String email,
                 String phoneNumber, Role role) {
@@ -98,6 +106,10 @@ public class User extends BaseTimeEntity {
         this.lockedUntil = null;
         this.lastLoginAt = LocalDateTime.now();
     }
+
+    // [4-2 조치] 토큰 무효화는 TokenInvalidationRegistry 담당 (위 주석 참고).
+    // 비밀번호 변경·계정 정지에서 전 기기 강제 로그아웃이 필요하면
+    // 그 레지스트리의 invalidate(userId) 를 부르면 된다.
 
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;

@@ -49,6 +49,7 @@ public class AccountRecoveryService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;   // [4-2 조치] 비밀번호 재설정 시 세션 종료
 
     /** POST /api/v1/auth/find-username - 프론트 요구 방식 { name, email } 로 아이디 찾기 */
     @Transactional(readOnly = true)
@@ -85,6 +86,11 @@ public class AccountRecoveryService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+
+        // [4-2 조치] 재설정 즉시 이 계정의 모든 세션을 끊는다.
+        // 이 경로는 비로그인 상태에서 부르므로 끊길 "내 세션"이 없고, 끊기는 것은
+        // 계정을 탈취해 이미 로그인해 있는 쪽이다. 위 주석의 8-1 위험을 실질적으로 낮춘다.
+        authService.terminateAllSessions(user.getId());
     }
 
     /** POST /api/v1/auth/user/find-account (type=ID) */
@@ -107,6 +113,9 @@ public class AccountRecoveryService {
 
         String tempPassword = generateTempPassword();
         user.changePassword(passwordEncoder.encode(tempPassword));
+
+        // [4-2 조치] 임시 비밀번호 발급도 재설정이다. 기존 세션을 전부 끊는다.
+        authService.terminateAllSessions(user.getId());
 
         // 실제 메일 발송 연동 전까지는 로그로 남김
         log.info("[MOCK EMAIL] {} 에게 임시 비밀번호 발송: {}", user.getEmail(), tempPassword);

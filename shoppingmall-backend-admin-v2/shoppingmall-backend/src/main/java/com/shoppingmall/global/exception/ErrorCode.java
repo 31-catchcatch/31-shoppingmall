@@ -24,6 +24,10 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH-005", "만료된 토큰입니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH-006", "존재하지 않는 사용자입니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH-007", "접근 권한이 없습니다."),
+    // [4-1 조치] CSRF 실패를 권한 부족과 구분한다. 둘 다 403 이라 메시지가 같으면
+    //            운영 중에 "권한 문제인지 토큰 문제인지" 를 화면만 보고 알 수 없다.
+    CSRF_TOKEN_INVALID(HttpStatus.FORBIDDEN, "AUTH-008",
+            "보안 토큰이 유효하지 않습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요."),
     WRONG_LOGIN_ENDPOINT(HttpStatus.BAD_REQUEST, "AUTH-008", "잘못된 로그인 경로입니다. 알맞은 로그인 API를 사용해주세요."),
     DUPLICATE_BUSINESS_NUMBER(HttpStatus.CONFLICT, "AUTH-009", "이미 등록된 사업자등록번호입니다."),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "AUTH-010", "인증번호가 일치하지 않습니다."),

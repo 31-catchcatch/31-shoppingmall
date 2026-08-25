@@ -61,6 +61,25 @@ public interface CouponRepository
                                      Pageable pageable);
 
     /**
+     * GET /api/v1/admin/coupons - 관리자 콘솔 '발행 쿠폰' 탭.
+     * 중지(active=false)된 쿠폰도 화면에서 상태로 구분해 보여주므로 전부 내려준다.
+     *
+     * 응답(AdminCouponResponse)에 판매자 상호명과 요청 ID가 들어간다.
+     * 지연 로딩으로 두면 화면이 한 번에 200건을 부르는 만큼 판매자 조회가 따라붙으므로
+     * 두 연관을 함께 읽는다. 둘 다 ToOne 이라 페이징이 메모리로 내려가지 않는다.
+     */
+    @Query(
+            value = """
+                    select c from Coupon c
+                    join fetch c.seller
+                    join fetch c.couponRequest
+                    order by c.createdAt desc
+                    """,
+            countQuery = "select count(c) from Coupon c"
+    )
+    Page<Coupon> findAllForAdmin(Pageable pageable);
+
+    /**
      * 승인 요청으로 생성된 쿠폰 조회
      */
     Optional<Coupon> findByCouponRequest_Id(

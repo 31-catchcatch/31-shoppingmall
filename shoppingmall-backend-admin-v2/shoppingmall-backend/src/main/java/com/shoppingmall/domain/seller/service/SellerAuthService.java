@@ -1,9 +1,12 @@
 package com.shoppingmall.domain.seller.service;
 
+import com.shoppingmall.domain.auth.dto.response.TokenResponse;
+import com.shoppingmall.domain.auth.service.AuthService;
 import com.shoppingmall.domain.seller.dto.request.SellerSignupRequest;
 import com.shoppingmall.domain.seller.dto.response.SellerSignupResponse;
 import com.shoppingmall.domain.seller.dto.request.SellerLoginRequest;
 import com.shoppingmall.domain.seller.dto.response.SellerLoginResponse;
+import com.shoppingmall.domain.seller.dto.response.SellerLoginResult;
 import com.shoppingmall.domain.seller.entity.Seller;
 import com.shoppingmall.domain.seller.entity.SellerApplication;
 import com.shoppingmall.domain.seller.entity.SellerApplicationStatus;
@@ -16,7 +19,6 @@ import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import com.shoppingmall.global.security.LoginAttemptService;
-import com.shoppingmall.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,13 @@ public class SellerAuthService {
 
     private final PasswordEncoder passwordEncoder;
     private final LoginAttemptService loginAttemptService;   // [3-2 조치]
-    private final JwtTokenProvider jwtTokenProvider;
+
+    /**
+     * [4-2 조치] 토큰 발급을 AuthService 로 위임하기 위해 주입한다.
+     * 일반 사용자·관리자와 같은 경로(issueAndPersistTokens)를 쓰기 위함이며,
+     * AuthService 는 SellerAuthService 를 참조하지 않아 순환 의존이 없다.
+     */
+    private final AuthService authService;
 
     /**
      * 판매자 회원가입 (S-AUTH-003)
@@ -128,8 +136,15 @@ public class SellerAuthService {
 
     /**
      * 판매자 로그인
+     *
+     * <p><b>[4-2 조치] @Transactional 필수</b> — 이 클래스는 클래스 레벨이
+     * {@code @Transactional(readOnly = true)} 라, 이 메서드에서 호출하는
+     * {@code issueAndPersistTokens()} 의 refresh_tokens INSERT 가 read-only 커넥션에서
+     * 실행되어 실패한다. 로그인 실패 횟수 기록(LoginAttemptService)은 REQUIRES_NEW 라
+     * 영향이 없지만, 토큰 저장은 이 트랜잭션에 참여하므로 반드시 read-write 여야 한다.
      */
-    public SellerLoginResponse login(SellerLoginRequest request) {
+    @Transactional
+    public SellerLoginResult login(SellerLoginRequest request) {
 
         User user = userRepository.findByUsernameAndDeletedFalse(request.loginId())
                 .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
@@ -154,15 +169,22 @@ public class SellerAuthService {
 
         loginAttemptService.onSuccess(user.getId());   // [3-2 조치]
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "ROLE_SELLER");
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "ROLE_SELLER");
+        // [4-2 조치] 토큰 발급을 일반 사용자·관리자와 같은 경로로 통일한다.
+        //
+        // 종전에는 jwtTokenProvider 를 직접 호출해 토큰만 만들고 refresh_tokens 에 저장하지
+        // 않았다. 그래서 AuthService.refresh() 의 findByToken() 이 항상 실패해
+        // 판매자만 토큰 재발급이 불가능했고, 로그아웃 시에도 지울 행이 없어
+        // 리프레시 토큰이 만료(7일)까지 살아남았다.
+        //
+        // role 도 "ROLE_SELLER" 직접 지정 대신 Role.name() 을 쓰는 다른 경로와 맞춘다.
+        // (인가는 CustomUserDetails 가 DB 의 User.role 로 판단하므로 동작 변화는 없다)
+        TokenResponse tokens = authService.issueAndPersistTokens(user);
 
-        return new SellerLoginResponse(
-                accessToken,
-                refreshToken,
-                "Bearer",
+        return new SellerLoginResult(
+                tokens,
                 seller.getId(),
-                seller.getBusinessName()
+                seller.getBusinessName(),
+                tokens.role()
         );
     }
 

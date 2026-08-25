@@ -35,8 +35,7 @@ public class ProductService {
                 : escapeLike(keyword.trim());
 
         return productRepository
-                .search(categoryId, brandId, normalizedKeyword, pageable)
-                .map(ProductListResponse::from);
+                .search(categoryId, brandId, normalizedKeyword, pageable).map(ProductListResponse::from);
     }
 
     /**

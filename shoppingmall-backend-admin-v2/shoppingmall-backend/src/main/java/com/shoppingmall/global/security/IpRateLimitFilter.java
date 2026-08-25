@@ -47,7 +47,17 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
             "/api/v1/auth/reset-password",
             "/api/v1/auth/user/find-account",
             "/api/v1/auth/seller/find-account",
-            "/api/v1/admin/users");
+            "/api/v1/admin/users",
+            // [4-1 조치] 아래 3개는 "비인증 + 무제한 + CSRF 면제" 가 겹쳐 있었다.
+            //   signup            : 대량 계정 생성
+            //   email-verification: 메일 폭탄 발송 벡터
+            //   check-username    : 사용자명 열거
+            // ⚠️ /api/v1/auth/refresh 는 넣지 말 것 — NAT 뒤에서 20회/분을 금방 넘겨
+            //    429 가 나면 그 IP 사용자 전원이 동시에 로그아웃된다.
+            "/api/v1/auth/user/signup",
+            "/api/v1/auth/seller/signup",
+            "/api/v1/auth/email-verification",
+            "/api/v1/auth/check-username");
 
     private final Cache<String, AtomicInteger> counters = Caffeine.newBuilder()
             .expireAfterWrite(Duration.ofMinutes(1))
