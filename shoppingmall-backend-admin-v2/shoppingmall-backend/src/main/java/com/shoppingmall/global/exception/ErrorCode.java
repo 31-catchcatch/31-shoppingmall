@@ -13,6 +13,8 @@ public enum ErrorCode {
     // Common
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON-001", "입력값이 올바르지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-002", "서버 내부 오류가 발생했습니다."),
+    // [3-2 조치] IP 단위 요청 제한
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "COMMON-003", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
 
     // Auth / User
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "AUTH-001", "이미 사용 중인 아이디입니다."),
@@ -22,6 +24,10 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH-005", "만료된 토큰입니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH-006", "존재하지 않는 사용자입니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH-007", "접근 권한이 없습니다."),
+    // [4-1 조치] CSRF 실패를 권한 부족과 구분한다. 둘 다 403 이라 메시지가 같으면
+    //            운영 중에 "권한 문제인지 토큰 문제인지" 를 화면만 보고 알 수 없다.
+    CSRF_TOKEN_INVALID(HttpStatus.FORBIDDEN, "AUTH-008",
+            "보안 토큰이 유효하지 않습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요."),
     WRONG_LOGIN_ENDPOINT(HttpStatus.BAD_REQUEST, "AUTH-008", "잘못된 로그인 경로입니다. 알맞은 로그인 API를 사용해주세요."),
     DUPLICATE_BUSINESS_NUMBER(HttpStatus.CONFLICT, "AUTH-009", "이미 등록된 사업자등록번호입니다."),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "AUTH-010", "인증번호가 일치하지 않습니다."),
@@ -38,6 +44,11 @@ public enum ErrorCode {
     PRODUCT_NOT_ON_SALE(HttpStatus.CONFLICT, "PRODUCT-004", "현재 판매중지된 상품입니다."),
     OUT_OF_STOCK(HttpStatus.CONFLICT, "PRODUCT-005", "재고가 부족합니다."),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW-001", "이미 리뷰를 작성한 주문입니다."),
+        
+    // Banner
+    BANNER_NOT_FOUND(HttpStatus.NOT_FOUND, "BANNER-001", "존재하지 않는 배너입니다."),
+    INVALID_BANNER_PERIOD(HttpStatus.BAD_REQUEST, "BANNER-002", "배너 노출 종료일은 시작일보다 뒤여야 합니다."),
+    INVALID_BANNER_URL(HttpStatus.BAD_REQUEST, "BANNER-003", "허용되지 않은 URL 형식입니다."),
 
     // ===== Seller (sell 추가) =====
     SELLER_NOT_FOUND(HttpStatus.NOT_FOUND, "SELLER-001", "판매자를 찾을 수 없습니다."),
@@ -60,6 +71,8 @@ public enum ErrorCode {
     // ===== Order (sell 추가) =====
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, "ORDER-001", "현재 주문 상태에서는 배송 처리를 할 수 없습니다."),
     ORDER_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "ORDER-002", "결제 대기 중인 주문만 취소할 수 있습니다."),
+        ORDER_DRAFT_EXPIRED(HttpStatus.BAD_REQUEST, "ORDER-020", "주문 정보가 만료되었습니다. 상품을 다시 선택해 주세요."),
+    ORDER_ITEM_REQUIRED(HttpStatus.BAD_REQUEST, "ORDER-021", "주문할 상품이 없습니다."),
 
     // ===== Claim (sell 추가) =====
     INVALID_CLAIM_STATUS(HttpStatus.BAD_REQUEST, "CLAIM-001", "현재 상태에서는 클레임을 신청하거나 변경할 수 없습니다."),
@@ -98,7 +111,17 @@ public enum ErrorCode {
     PAYMENT_GATEWAY_ERROR(HttpStatus.BAD_GATEWAY, "PAYMENT-005", "결제 서버와 통신하지 못했습니다. 잠시 후 다시 시도해주세요."),
 
     // ===== Settlement =====
-    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SETTLEMENT-001", "존재하지 않는 정산 내역입니다.");
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SETTLEMENT-001", "존재하지 않는 정산 내역입니다."),
+
+    // [2-1 조치] 파일 업로드 검증
+    INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "FILE-001", "허용되지 않은 파일 형식입니다."),
+    INVALID_FILE_CONTENT(HttpStatus.BAD_REQUEST, "FILE-002", "파일 내용이 형식과 일치하지 않습니다."),
+    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE-003", "파일 크기가 허용 범위를 초과했습니다."),
+
+    // [3-2 조치] 로그인 실패 횟수 제한
+    // ⚠️ 메시지에 남은 시도 횟수나 계정 존재 여부를 담지 않는다 (3-3 계정 정보 파악 가능성 유지)
+    ACCOUNT_LOCKED(HttpStatus.LOCKED, "AUTH-013",
+            "로그인 실패 횟수를 초과하여 계정이 잠겼습니다. 잠시 후 다시 시도해 주세요.");
 
     private final HttpStatus status;
     private final String code;

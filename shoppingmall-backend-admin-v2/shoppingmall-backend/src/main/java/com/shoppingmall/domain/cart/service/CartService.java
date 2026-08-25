@@ -49,7 +49,7 @@ public class CartService {
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
         // 상품 내부의 옵션 목록에서 요청온 옵션이 실제 존재하는지 찾아 매핑
-        ProductOption productOption = product.getOptions().stream()
+        ProductOption productOption = product.getActiveOptions().stream()
                 .filter(option -> option.getId().equals(request.getProductOptionId()))
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT)); // 매칭되는 올바른 옵션 에러 처리

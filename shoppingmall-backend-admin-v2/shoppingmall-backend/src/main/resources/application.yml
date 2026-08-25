@@ -5,8 +5,8 @@ spring:
   datasource:
     # infra 가이드 기준 db-01 = 192.168.10.10 / DB명 appdb
     url: jdbc:mysql://${DB_HOST:192.168.10.10}:3306/appdb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${DB_USERNAME:appuser}
-    password: ${DB_PASSWORD:}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -22,23 +22,80 @@ spring:
 
   servlet:
     multipart:
+      # 파일 업로드 상한 (JSON 본문 상한은 아래 server.tomcat 에서 별도로 낮춘다 - [1-6 조치])
       max-file-size: 20MB
       max-request-size: 20MB
 
 server:
   port: 8080  # was-01 Tomcat 포트 (infra 가이드 5번 방화벽 규칙과 동일해야 함)
+  # [7-4 조치] TLS 를 프록시(nginx/ALB)에서 종단할 때, 앞단이 넘긴 X-Forwarded-Proto 를
+  #            신뢰해 request.isSecure()/scheme 를 원요청 기준(HTTPS)으로 판정한다.
+  #            HTTP 로 서비스하는 환경(web-01)에서는 프록시가 http 를 넘기므로 동작이 바뀌지 않는다.
+  forward-headers-strategy: framework
   servlet:
     context-path: /
 
+  # [1-6 조치] 요청 크기 제한. JSON 본문(2MB)과 파일 업로드(20MB)를 분리한다.
+  max-http-request-header-size: 16KB
+  tomcat:
+    max-http-form-post-size: 2MB
+    max-swallow-size: 2MB
+
+  # [6-1 조치] 오류 응답에 내부 정보(예외 메시지·스택트레이스·클래스명)를 담지 않는다.
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+    whitelabel:
+      enabled: false
+
 jwt:
-  secret: ${JWT_SECRET:CHANGE_ME_TO_A_LONG_RANDOM_SECRET_AT_LEAST_256BIT}
-  access-token-validity-ms: 3600000        # 1시간
-  refresh-token-validity-ms: 1209600000    # 14일
+  # ⚠️ [5-1][4-2 조치] 기본값을 제거했다. 환경변수 JWT_SECRET 이 없으면 기동에 실패한다.
+  #    (기본값이 남아 있으면 설정을 빠뜨렸을 때 소스에 공개된 문자열이 서명 키가 되어
+  #     토큰 위조가 가능해진다 — 조용히 취약해지는 대신 즉시 실패시킨다)
+  #    키 생성: openssl rand -base64 48  / 최소 32자, JwtTokenProvider.init() 에서 검증
+  secret: ${JWT_SECRET}
+  access-token-validity-ms: 900000         # [4-2 조치] 1시간 -> 15분 (유출 시 노출 창 축소)
+  refresh-token-validity-ms: 604800000     # [4-2 조치] 14일 -> 7일
+
+# [4-1][5-1 조치] 인증 쿠키 설정
+# 토큰을 localStorage 대신 HttpOnly 쿠키로 내려보내 XSS 로 인한 탈취를 차단한다.
+app:
+  security:
+    # [4-1 조치 · 3단계] CSRF 킬스위치. 기본 켜짐.
+    #   테스트 소스가 없는 프로젝트라, 켠 뒤 예상 못 한 403 이 나오면 되돌릴 수단이
+    #   재빌드밖에 없다. APP_SECURITY_CSRF_ENABLED=false 로 재빌드 없이 끌 수 있게 둔다.
+    #   (끄더라도 쿠키 인증은 그대로 동작하므로 서비스는 계속된다)
+    csrf-enabled: ${APP_SECURITY_CSRF_ENABLED:true}
+  cookie:
+    # ⚠️ 기본값 true. HTTP 로만 서비스하는 현재 web-01 에서는 반드시 환경변수로 꺼야 한다.
+    #    (Secure 쿠키는 HTTPS 에서만 전송되므로 켜둔 채 배포하면 로그인이 통째로 깨진다)
+    #    HTTPS 로 이관한 뒤에는 APP_COOKIE_SECURE 를 제거하기만 하면 자동으로 적용된다.
+    secure: ${APP_COOKIE_SECURE:true}
+    # Lax: 교차 사이트 POST 는 차단하면서, 외부 링크로 들어온 사용자의 로그인 상태는 유지된다.
+    same-site: ${APP_COOKIE_SAME_SITE:Lax}
+    # 리프레시 쿠키는 재발급·로그아웃 경로에만 실리도록 범위를 좁힌다.
+    refresh-path: /api/v1/auth
+  # [1-1][4-1 조치] CORS 허용 오리진. 하드코딩을 환경변수로 뺐다.
+  #   기본값은 온프레미스(web-01)·로컬 개발용. HTTPS 이관 환경에서는
+  #   CORS_ALLOWED_ORIGINS=https://catchcatch31.com 로 주입한다.
+  #   (프론트·API 가 같은 도메인이면 same-origin 이라 CORS 자체가 안 걸리며, 이 목록은 안전장치다)
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://192.168.10.12,http://localhost:5173,http://localhost:3000}
 
 file:
-  # was-01 로컬 디스크 경로. 배포 시 충분한 용량이 있는 경로로 변경 (S3 도입 전까지 임시)
-  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  # [2-1 조치] 웹 애플리케이션 디렉터리 하위(./uploads)가 아닌 별도 경로로 분리한다.
+  #            운영 서버에서는 이 디렉터리의 실행 권한을 제거할 것 (chmod -R a-x).
+  upload-dir: ${FILE_UPLOAD_DIR:/var/catchcatch/uploads}
   base-url: /uploads
+
+# [3-2 조치] 로그인 실패 횟수 제한
+# SYSTEM 진단 W-04(5회 이하) 기준과 정렬했다.
+security:
+  login:
+    max-attempts: 5
+    lock-minutes: 10
 
 payment:
   toss:
@@ -53,7 +110,10 @@ payment:
     success-url: ${TOSS_SUCCESS_URL:http://192.168.10.12/payment-success.html}
     fail-url: ${TOSS_FAIL_URL:http://192.168.10.12/payment-fail.html}
 
+# [5-1 조치] 운영에서는 SQL 전문이 로그에 남지 않도록 낮춘다.
+#            개발 환경은 application-local.yml 에서 debug 로 덮어쓸 것.
 logging:
   level:
-    org.hibernate.SQL: debug
-    com.shoppingmall: debug
+    root: info
+    org.hibernate.SQL: warn
+    com.shoppingmall: info

@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.seller.dto.request;
 
+import com.shoppingmall.global.validation.NoHtml;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -10,6 +12,7 @@ public record ProductOptionRequest(
 
         @NotBlank(message = "옵션명을 입력해 주세요.")
         @Size(max = 100, message = "옵션명은 100자 이하여야 합니다.")
+        @NoHtml   // [1-1]
         String optionName,
 
         @NotNull(message = "추가 금액을 입력해 주세요.")

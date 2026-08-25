@@ -40,7 +40,7 @@ public record SellerProductDetailResponse(
                 product.getDescription(),
                 product.getThumbnailUrl(),
                 product.getImages().stream().map(image -> image.getImageUrl()).toList(),
-                product.getOptions().stream().map(OptionResponse::from).toList()
+                product.getActiveOptions().stream().map(OptionResponse::from).toList()
         );
     }
 

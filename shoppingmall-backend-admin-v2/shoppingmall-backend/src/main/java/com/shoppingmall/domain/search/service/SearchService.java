@@ -1,6 +1,7 @@
 package com.shoppingmall.domain.search.service;
 
 import com.shoppingmall.domain.product.repository.ProductRepository;
+import com.shoppingmall.domain.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,8 @@ public class SearchService {
         if (keyword == null || keyword.isBlank()) {
             return List.of();
         }
-        return productRepository.findTop10NamesStartingWith(keyword, PageRequest.of(0, MAX_SUGGESTIONS));
+        // [1-2 조치] LIKE 와일드카드를 리터럴로 처리한다 (JPQL 의 escape '!' 와 짝)
+        return productRepository.findTop10NamesStartingWith(
+                ProductService.escapeLike(keyword.trim()), PageRequest.of(0, MAX_SUGGESTIONS));
     }
 }

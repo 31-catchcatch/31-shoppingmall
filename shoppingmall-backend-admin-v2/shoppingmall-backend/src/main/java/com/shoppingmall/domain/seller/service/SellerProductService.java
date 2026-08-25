@@ -20,6 +20,7 @@ import com.shoppingmall.domain.seller.entity.SellerApplicationStatus;
 import com.shoppingmall.domain.seller.repository.SellerApplicationRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
+import com.shoppingmall.global.validation.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -170,7 +171,8 @@ public class SellerProductService {
                 .name(request.productName())
                 .price(request.price())
                 .discountRate(request.discountRate())
-                .description(request.description())
+                // [1-1 조치] 서식 태그가 필요한 필드라 차단 대신 화이트리스트 정제를 적용한다
+                .description(HtmlSanitizer.clean(request.description()))
                 .thumbnailUrl(request.thumbnailUrl())
                 .build();
 
@@ -246,7 +248,7 @@ public class SellerProductService {
                 request.productName(),
                 request.price(),
                 request.discountRate(),
-                request.description(),
+                HtmlSanitizer.clean(request.description()),   // [1-1 조치]
                 request.thumbnailUrl()
         );
 

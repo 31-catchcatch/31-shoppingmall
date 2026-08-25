@@ -9,7 +9,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** DB 정의서 'products' 테이블 매핑. (image_url -> thumbnail_url 로 명칭 변경된 v2 반영) */
 @Getter
@@ -73,7 +77,7 @@ public class Product extends BaseTimeEntity {
     @OrderBy("sortOrder asc")
     private List<ProductImage> images = new ArrayList<>();
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<ProductOption> options = new ArrayList<>();
 
     @Builder
@@ -104,12 +108,45 @@ public class Product extends BaseTimeEntity {
     public void addOption(ProductOption option) {
         options.add(option);
     }
-
-    /** 상품 수정 시 옵션 목록을 통째로 교체한다 (orphanRemoval로 기존 옵션은 삭제됨). */
+    
     public void replaceOptions(List<ProductOption> newOptions) {
-        options.clear();
-        options.addAll(newOptions);
+        Map<String, ProductOption> byName = new LinkedHashMap<>();
+        for (ProductOption existing : options) {
+            byName.putIfAbsent(existing.getOptionName(), existing);
+        }
+
+        Set<String> requested = new LinkedHashSet<>();
+        List<ProductOption> toAdd = new ArrayList<>();
+
+        for (ProductOption incoming : newOptions) {
+            String name = incoming.getOptionName();
+            requested.add(name);
+
+            ProductOption existing = byName.get(name);
+            if (existing == null) {
+                toAdd.add(incoming);
+                continue;
+            }
+            if (existing.isDeleted()) {
+                existing.restore();
+            }
+            existing.update(incoming.getAdditionalPrice(), incoming.getStockQuantity());
+        }
+
+        for (ProductOption existing : options) {
+            if (!requested.contains(existing.getOptionName()) && !existing.isDeleted()) {
+                existing.softDelete();
+            }
+        }
+
+        options.addAll(toAdd);
     }
+
+    /** 판매·노출에 쓰이는 살아있는 옵션만 돌려준다. */
+    public List<ProductOption> getActiveOptions() {
+        return options.stream().filter(o -> !o.isDeleted()).toList();
+    }
+  
     /**
      * 판매자가 상품 기본 정보를 수정한다.
      *

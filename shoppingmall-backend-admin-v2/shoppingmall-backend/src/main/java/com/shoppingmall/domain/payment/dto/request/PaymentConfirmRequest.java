@@ -12,10 +12,9 @@ import lombok.NoArgsConstructor;
  *
  * ⚠️ orderId 는 DB PK(Long)가 아니라 Order.orderNumber(String)다.
  *    토스의 orderId 는 6~64자 제약이 있어 1~2자리 숫자 PK 를 쓸 수 없기 때문이다.
- *    기존 PaymentVerifyRequest.orderId 는 Long 이므로 혼동하지 말 것.
  *
  * amount 는 여기서 받되 신뢰하지 않는다. 서버가 Order.finalPaymentAmount 와 대조해
- * 다르면 토스를 호출하기도 전에 차단한다.
+ * 다르면 토스를 호출하기도 전에 차단한다. (PaymentLedgerService.prepare 참고)
  */
 @Getter
 @NoArgsConstructor

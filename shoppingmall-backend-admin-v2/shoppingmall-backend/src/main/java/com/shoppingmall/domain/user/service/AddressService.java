@@ -87,10 +87,17 @@ public class AddressService {
     }
 
     // 주소 삭제 (DELETE)
+    // [1-3 조치] 경로변수(addressId)만 믿고 삭제하던 IDOR 을 막기 위해 소유자를 검증한다.
+    //            updateAddress 와 동일한 방식으로 통일했다.
     @Transactional
-    public void deleteAddress(Long addressId) {
+    public void deleteAddress(Long userId, Long addressId) {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ADDRESS_NOT_FOUND));
+
+        if (!address.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
         addressRepository.delete(address);
     }
 }

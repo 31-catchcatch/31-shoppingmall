@@ -32,6 +32,11 @@ import com.shoppingmall.domain.user.repository.AddressRepository;
 import com.shoppingmall.domain.user.repository.UserRepository;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
+import com.shoppingmall.domain.cart.entity.CartItem;
+import com.shoppingmall.domain.order.dto.request.OrderPrepareRequest;
+import com.shoppingmall.domain.order.dto.response.OrderDraftResponse;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -79,7 +84,7 @@ public class OrderService {
     private final UserCouponRepository userCouponRepository;
     private final SettlementRepository settlementRepository;
     private final PointService pointService;
-
+    private final OrderDraftStore orderDraftStore;
     /** 1. 주문서 진입 데이터 조회 (기본 배송지/보유 포인트) */
     public CheckoutResponse getCheckoutData(Long userId) {
         User user = userRepository.findById(userId)
@@ -98,6 +103,98 @@ public class OrderService {
                 .build();
     }
 
+    /**
+     * [1-3 조치] 주문서 진입 — 서버가 주문 대상과 금액을 확정한다.
+     *
+     * <p>바로구매(items)와 장바구니 주문(cartItemIds) 두 경로를 동일한 초안으로 만든다.
+     * 이후 결제 요청에는 draftId 만 실리므로 상품·옵션·수량을 바꿔 보낼 방법이 없다.
+     *
+     * <p>재고는 여기서 차감하지 않는다. 주문서만 열고 이탈하는 경우가 많아 묶이기 때문이다.
+     */
+    public OrderDraftResponse prepareOrder(Long userId, OrderPrepareRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        List<OrderDraftStore.DraftItem> draftItems = new ArrayList<>();
+        List<OrderDraftResponse.Item> viewItems = new ArrayList<>();
+        int totalProductAmount = 0;
+
+        record Target(Long productId, Long optionId, int quantity) {}
+        List<Target> targets = new ArrayList<>();
+
+        if (request.cartItemIds() != null && !request.cartItemIds().isEmpty()) {
+            // 장바구니 경로 — 본인 장바구니에 실제로 있는 항목만 인정한다.
+            Map<Long, CartItem> mine = cartItemRepository.findAllByUser(user).stream()
+                    .collect(Collectors.toMap(CartItem::getId, ci -> ci));
+            for (Long cartItemId : request.cartItemIds()) {
+                CartItem ci = mine.get(cartItemId);
+                if (ci == null) {
+                    throw new CustomException(ErrorCode.INVALID_INPUT);
+                }
+                targets.add(new Target(ci.getProduct().getId(),
+                        ci.getProductOption().getId(), ci.getQuantity()));
+            }
+        } else if (request.items() != null && !request.items().isEmpty()) {
+            for (OrderPrepareRequest.DirectItem it : request.items()) {
+                targets.add(new Target(it.productId(), it.optionId(), it.quantity()));
+            }
+        } else {
+            throw new CustomException(ErrorCode.ORDER_ITEM_REQUIRED);
+        }
+
+        for (Target t : targets) {
+            Product product = productRepository.findByIdAndDeletedFalse(t.productId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+            if (!product.isOnSale()) {
+                throw new CustomException(ErrorCode.PRODUCT_NOT_ON_SALE);
+            }
+
+            ProductOption option = product.getActiveOptions().stream()
+                    .filter(o -> o.getId().equals(t.optionId()))
+                    .findFirst()
+                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+
+            int unitPrice = product.getPrice() + option.getAdditionalPrice();
+            int lineAmount = unitPrice * t.quantity();
+            totalProductAmount += lineAmount;
+
+            draftItems.add(new OrderDraftStore.DraftItem(
+                    product.getId(), option.getId(), t.quantity(), unitPrice));
+            viewItems.add(new OrderDraftResponse.Item(
+                    product.getId(), option.getId(), product.getName(), option.getOptionName(),
+                    product.getThumbnailUrl(), unitPrice, t.quantity(), lineAmount));
+        }
+
+        int shippingFee = calcShippingFee(totalProductAmount);
+        String draftId = orderDraftStore.put(new OrderDraftStore.Draft(
+                userId, draftItems, totalProductAmount, shippingFee));
+
+        return new OrderDraftResponse(draftId, viewItems,
+                totalProductAmount, shippingFee, totalProductAmount + shippingFee);
+    }
+
+    /** 주문서 새로고침용 — 초안을 소모하지 않고 조회만 한다. */
+    public OrderDraftResponse getDraft(Long userId, String draftId) {
+        OrderDraftStore.Draft draft = orderDraftStore.peek(draftId, userId);
+
+        List<OrderDraftResponse.Item> viewItems = new ArrayList<>();
+        for (OrderDraftStore.DraftItem d : draft.items()) {
+            Product product = productRepository.findByIdAndDeletedFalse(d.productId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+            String optionName = product.getActiveOptions().stream()
+                    .filter(o -> o.getId().equals(d.optionId()))
+                    .map(ProductOption::getOptionName)
+                    .findFirst().orElse("");
+            viewItems.add(new OrderDraftResponse.Item(
+                    d.productId(), d.optionId(), product.getName(), optionName,
+                    product.getThumbnailUrl(), d.unitPrice(), d.quantity(),
+                    d.unitPrice() * d.quantity()));
+        }
+        return new OrderDraftResponse(draftId, viewItems,
+                draft.totalProductAmount(), draft.shippingFee(),
+                draft.totalProductAmount() + draft.shippingFee());
+    }
+
     /** 2. 최종 주문 생성 (재고 확인 + 주문/주문상세 영속화 + 장바구니에서 제거) */
     @Transactional
     public OrderResponse placeOrder(Long userId, OrderCreateRequest request) {
@@ -109,37 +206,34 @@ public class OrderService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 
+        // [1-3 조치] 주문 대상은 요청에서 받지 않는다. 주문서 진입 시 서버가 확정한 초안을 꺼내 쓴다.
+        //            consume 은 조회와 동시에 제거하므로 같은 초안으로 두 번 주문할 수 없다.
+        OrderDraftStore.Draft draft = orderDraftStore.consume(request.draftId(), userId);
+
         List<OrderDetail> details = new ArrayList<>();
         int totalProductAmount = 0;
 
-        for (OrderCreateRequest.OrderItemRequest item : request.items()) {
+        for (OrderDraftStore.DraftItem item : draft.items()) {
             Product product = productRepository.findByIdAndDeletedFalse(item.productId())
                     .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
-            // 장바구니에 담아둔 뒤 판매중지된 상품은 주문 시점에 차단한다.
-            // (조회 필터만으로는 이미 담긴 상품을 못 막으므로 여기서 명시적으로 사유를 구분한다)
+            // 초안 발급 후 판매중지되었을 수 있으므로 확정 시점에 다시 본다.
             if (!product.isOnSale()) {
                 throw new CustomException(ErrorCode.PRODUCT_NOT_ON_SALE);
             }
 
-            ProductOption option = null;
-            int optionAdditionalPrice = 0;
-            if (item.optionId() != null) {
-                option = product.getOptions().stream()
-                        .filter(o -> o.getId().equals(item.optionId()))
-                        .findFirst()
-                        .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+            ProductOption option = product.getActiveOptions().stream()
+                    .filter(o -> o.getId().equals(item.optionId()))
+                    .findFirst()
+                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
 
-                // 재고를 원자적으로 차감한다. 조건부 UPDATE(stock >= qty)라 동시 주문에도
-                // 오버셀링이 발생하지 않으며, 영향 행이 0이면 재고 부족으로 판정한다.
-                int decreased = productOptionRepository.decreaseStock(option.getId(), item.quantity());
-                if (decreased == 0) {
-                    throw new CustomException(ErrorCode.OUT_OF_STOCK);
-                }
-                optionAdditionalPrice = option.getAdditionalPrice();
+            int decreased = productOptionRepository.decreaseStock(option.getId(), item.quantity());
+            if (decreased == 0) {
+                throw new CustomException(ErrorCode.OUT_OF_STOCK);
             }
 
-            int unitPrice = product.getPrice() + optionAdditionalPrice;
+            // 단가는 초안에 고정된 값을 쓴다. 주문서 표시 금액과 청구 금액이 어긋나지 않는다.
+            int unitPrice = item.unitPrice();
 
             details.add(OrderDetail.builder()
                     .product(product)
@@ -150,9 +244,8 @@ public class OrderService {
 
             totalProductAmount += unitPrice * item.quantity();
 
-            // 장바구니에서 담아뒀던 항목이면 주문 완료 후 정리 (장바구니에 없던 즉시구매는 그냥 무시됨)
-            Long optionId = option != null ? option.getId() : null;
-            cartItemRepository.findByUserAndProductIdAndProductOptionId(user, product.getId(), optionId)
+            cartItemRepository.findByUserAndProductIdAndProductOptionId(
+                            user, product.getId(), option.getId())
                     .ifPresent(cartItemRepository::delete);
         }
 

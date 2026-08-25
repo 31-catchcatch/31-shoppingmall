@@ -49,7 +49,7 @@ kim+seo 병합본 위에 **sell(판매자 파트)** 코드를 추가로 병합�
 - **QnA 등록 API가 인증 없이 뚫려있던 문제** — sell이 `POST /products/{id}/qna`(로그인 필요)를 `GET /products/{id}/qna`(공개)와 같은 경로로 만들면서, 기존 `SecurityConfig`의 permitAll 패턴이 경로 단위라 POST까지 같이 뚫려 있었습니다. `SecurityConfig`에서 GET만 permitAll로 걸도록 수정했습니다.
 - **`ErrorCode.java` 자체 중복 코드** — sell 코드에 `CLAIM-001`, `SELLER-013`이 각각 두 번씩 쓰이고 있어서 재배치했습니다.
 - **`ProductDetailResponse`가 옛 `Seller.getCompanyName()` 참조** — `Product.seller`가 `SellerApplication` 타입으로 바뀌면서 `getBusinessName()`으로 수정했습니다.
-- **`AuthController`의 `/auth/seller/login` 중복 매핑** — sell이 `domain.seller.controller.SellerAuthController`에 같은 URL을 이미 구현해뒀어서, 기존 auth 패키지의 것은 제거했습니다 (안 그러면 Spring 기동 시 "Ambiguous mapping" 에러). `/auth/seller/signup`은 일반 회원가입과 동일하게 단순화했습니다(사업자 서류 제출은 `/seller/applications`에서 별도 진행).
+- **`AuthController`의 `/auth/seller/login` 중복 매핑** — sell이 `domain.seller.controller.SellerAuthController`에 같은 URL을 이미 구현해뒀어서, 기존 auth 패키지의 것은 제거했습니다 (안 그러면 Spring 기동 시 "Ambiguous mapping" 에러). `/auth/seller/signup`은 계정 생성과 입점 신청(SellerApplication PENDING)을 한 번에 처리합니다. (2026-08-21 정정: 종전에 별도로 두었던 `/seller/applications` 는 `hasRole("SELLER")` 보호 경로라 신청자가 호출할 수 없어 제거했습니다.)
 
 ### 이번엔 실제로 컴파일 검증을 못 했습니다
 

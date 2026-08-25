@@ -1,7 +1,7 @@
 package com.shoppingmall.domain.user.controller;
 
 import com.shoppingmall.domain.user.dto.request.AddressRequest;
-import com.shoppingmall.domain.user.entity.Address;
+import com.shoppingmall.domain.user.dto.response.AddressResponse;
 import com.shoppingmall.domain.user.service.AddressService;
 import com.shoppingmall.global.common.ApiResponse;
 import com.shoppingmall.global.security.CustomUserDetails;
@@ -20,11 +20,18 @@ public class UserAddressController {
 
     private final AddressService addressService;
 
-    // 1. 내 주소록 리스트 조회 (성공 시 데이터 List<Address> 반환)
+    // 1. 내 주소록 리스트 조회
+    // [5-2 조치] 엔티티(Address)를 직접 반환하면 Address.user -> User.password(BCrypt 해시)까지
+    //            직렬화되어 응답에 계정 정보가 노출된다. 응답 DTO 로 변환해서 내려준다.
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Address>>> getAddresses(
+    public ResponseEntity<ApiResponse<List<AddressResponse>>> getAddresses(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        List<Address> response = addressService.getMyAddresses(userDetails.getUser().getId());
+
+        List<AddressResponse> response =
+                addressService.getMyAddresses(userDetails.getUser().getId()).stream()
+                        .map(AddressResponse::from)
+                        .toList();
+
         return ResponseEntity.ok(ApiResponse.success("주소록 목록 조회가 완료되었습니다.", response));
     }
 
@@ -53,7 +60,7 @@ public class UserAddressController {
     public ResponseEntity<ApiResponse<Void>> deleteAddress(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long addressId) {
-        addressService.deleteAddress(addressId);
+        addressService.deleteAddress(userDetails.getUser().getId(), addressId);
         return ResponseEntity.ok(ApiResponse.success("선택하신 배송지 정보가 정상 삭제되었습니다.", null));
     }
 }

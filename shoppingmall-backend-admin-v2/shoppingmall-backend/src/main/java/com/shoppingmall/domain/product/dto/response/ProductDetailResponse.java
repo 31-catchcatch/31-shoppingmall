@@ -9,6 +9,7 @@ import java.util.List;
 public record ProductDetailResponse(
         Long productId,
         String sellerName,
+        String brandName,      // 브랜드 미지정 상품은 null. 목록(ProductListResponse)과 같은 규칙
         String categoryName,
         String name,
         int price,
@@ -23,6 +24,7 @@ public record ProductDetailResponse(
         return new ProductDetailResponse(
                 product.getId(),
                 product.getSeller().getBusinessName(),
+                product.getBrand() != null ? product.getBrand().getName() : null,
                 product.getCategory().getName(),
                 product.getName(),
                 product.getPrice(),
@@ -31,7 +33,7 @@ public record ProductDetailResponse(
                 product.getDescription(),
                 product.getThumbnailUrl(),
                 product.getImages().stream().map(img -> img.getImageUrl()).toList(),
-                product.getOptions().stream().map(OptionResponse::from).toList()
+                product.getActiveOptions().stream().map(OptionResponse::from).toList()
         );
     }
 

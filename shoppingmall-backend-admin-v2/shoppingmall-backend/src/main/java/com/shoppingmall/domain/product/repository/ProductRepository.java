@@ -23,7 +23,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
               and p.status = com.shoppingmall.domain.product.entity.ProductStatus.ON_SALE
               and (:categoryId is null or p.category.id = :categoryId)
               and (:brandId is null or p.brand.id = :brandId)
-              and (:keyword is null or p.name like concat('%', :keyword, '%'))
+              and (:keyword is null or p.name like concat('%', :keyword, '%') escape '!')
             """)
     Page<Product> search(@Param("categoryId") Long categoryId,
                           @Param("brandId") Long brandId,
@@ -44,7 +44,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             select p.name from Product p
             where p.deleted = false
               and p.status = com.shoppingmall.domain.product.entity.ProductStatus.ON_SALE
-              and p.name like concat(:keyword, '%')
+              and p.name like concat(:keyword, '%') escape '!'
             order by p.name asc
             """)
     List<String> findTop10NamesStartingWith(@Param("keyword") String keyword, Pageable pageable);

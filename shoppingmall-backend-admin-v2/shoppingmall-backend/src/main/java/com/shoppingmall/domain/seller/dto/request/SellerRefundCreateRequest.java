@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.seller.dto.request;
 
+import com.shoppingmall.global.validation.NoHtml;
+
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -15,6 +17,7 @@ public record SellerRefundCreateRequest(
                 max = 500,
                 message = "환불 처리 메모는 500자 이하여야 합니다."
         )
+        @NoHtml   // [1-1]
         String memo
 
 ) {

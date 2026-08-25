@@ -8,9 +8,12 @@ import com.shoppingmall.domain.seller.dto.response.SellerCouponResponse;
 import com.shoppingmall.domain.seller.entity.SellerApplication;
 import com.shoppingmall.domain.seller.entity.SellerApplicationStatus;
 import com.shoppingmall.domain.seller.repository.SellerApplicationRepository;
+import com.shoppingmall.global.common.PageResponse;
 import com.shoppingmall.global.exception.CustomException;
 import com.shoppingmall.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * 담당 API
  * POST /api/v1/seller/coupons/request
+ * GET  /api/v1/seller/coupons/requests
  */
 @Service
 @RequiredArgsConstructor
@@ -98,6 +102,34 @@ public class SellerCouponService {
 
         // 7. 응답 DTO로 변환해서 반환한다.
         return SellerCouponResponse.from(savedRequest);
+    }
+
+    /**
+     * 로그인한 판매자 본인의 쿠폰 발행 요청 목록을 조회한다.
+     *
+     * 다른 판매자의 요청이 섞이지 않도록
+     * 승인된 입점 신청 ID로만 조회한다.
+     *
+     * @param userId 로그인한 사용자 ID
+     * @param pageable 페이징 정보
+     * @return 본인이 요청한 쿠폰 발행 요청 목록
+     */
+    public PageResponse<SellerCouponResponse> getMyCouponRequests(
+            Long userId,
+            Pageable pageable
+    ) {
+        SellerApplication seller =
+                getApprovedSellerApplication(userId);
+
+        Page<SellerCouponResponse> page =
+                couponRequestRepository
+                        .findAllBySeller_IdOrderByCreatedAtDesc(
+                                seller.getId(),
+                                pageable
+                        )
+                        .map(SellerCouponResponse::from);
+
+        return PageResponse.from(page);
     }
 
     /**

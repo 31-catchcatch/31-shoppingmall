@@ -44,5 +44,26 @@ public class ProductOption {
 
     public boolean isSoldOut() {
         return stockQuantity == 0;
+    
+    }
+/** 옵션 내용을 갱신한다. 행을 지우지 않으므로 order_details 가 참조하는 id 가 유지된다. */
+    public void update(Integer additionalPrice, Integer stockQuantity) {
+        this.additionalPrice = additionalPrice == null ? 0 : additionalPrice;
+        this.stockQuantity = stockQuantity == null ? 0 : stockQuantity;
+    }
+
+    /**
+     * 판매자가 옵션을 제거했을 때 호출한다.
+     * 물리 삭제하면 order_details.product_option_id 외래키 위반(SQL 1451)이 발생하고,
+     * 주문 이력에서 "어떤 옵션을 샀는지"도 사라진다. 행은 남기고 비활성 표시만 한다.
+     */
+    public void softDelete() {
+        this.deleted = true;
+        this.stockQuantity = 0;
+    }
+
+    /** 제거했던 옵션명을 다시 등록했을 때 기존 행을 되살린다. */
+    public void restore() {
+        this.deleted = false;
     }
 }

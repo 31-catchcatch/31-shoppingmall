@@ -1,6 +1,10 @@
 package com.shoppingmall.global.config;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -21,5 +25,32 @@ public class WebConfig implements WebMvcConfigurer {
         String location = "file:" + uploadDir.replaceAll("/+$", "") + "/";
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations(location);
+    }
+
+    /**
+     * [2-1 조치] 업로드 파일 응답을 브라우저가 실행하지 못하게 한다.
+     *
+     * <ul>
+     *   <li>X-Content-Type-Options: nosniff — 확장자와 다른 타입으로 재해석 금지</li>
+     *   <li>Content-Security-Policy: sandbox — 스크립트 실행 차단</li>
+     * </ul>
+     *
+     * <p>⚠️ Content-Disposition: attachment 는 의도적으로 넣지 않았다.
+     * 붙이면 &lt;img src="/uploads/..."&gt; 로 상품 이미지가 표시되지 않아 서비스가 깨진다.
+     * 근본 해결은 업로드 파일을 별도 도메인(S3/CloudFront)에서 서빙하는 것이며,
+     * 클라우드 전환 시 장기 과제로 다룬다.
+     */
+    @Bean
+    public FilterRegistrationBean<Filter> uploadResponseHardeningFilter() {
+        FilterRegistrationBean<Filter> bean = new FilterRegistrationBean<>();
+        bean.setFilter((request, response, chain) -> {
+            HttpServletResponse res = (HttpServletResponse) response;
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'");
+            chain.doFilter(request, response);
+        });
+        bean.addUrlPatterns("/uploads/*");
+        bean.setOrder(1);
+        return bean;
     }
 }

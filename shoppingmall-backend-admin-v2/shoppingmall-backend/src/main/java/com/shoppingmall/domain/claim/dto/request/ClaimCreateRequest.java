@@ -1,5 +1,7 @@
 package com.shoppingmall.domain.claim.dto.request;
 
+import com.shoppingmall.global.validation.NoHtml;
+
 import com.shoppingmall.domain.claim.entity.ClaimType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,6 +32,7 @@ public record ClaimCreateRequest(
                 max = 1000,
                 message = "신청 사유는 1,000자 이하여야 합니다."
         )
+        @NoHtml   // [1-1]
         String reason
 
 ) {

@@ -10,6 +10,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.constraints.Size;
+import org.springframework.data.domain.Sort;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
+@Validated
 public class ProductController {
 
     private final ProductService productService;
@@ -28,8 +32,11 @@ public class ProductController {
     public ResponseEntity<ApiResponse<PageResponse<ProductListResponse>>> getProducts(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long brandId,
-            @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @RequestParam(required = false)
+            @Size(max = 50, message = "검색어는 50자 이하여야 합니다.") String keyword,
+            // [1-2 조치] 네이티브 쿼리의 "order by created_at desc" 가 사라지므로 정렬 기본값을 명시한다.
+            @PageableDefault(size = 20, sort = "createdAt",
+                             direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<ProductListResponse> products = productService.getProducts(categoryId, brandId, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.from(products)));
