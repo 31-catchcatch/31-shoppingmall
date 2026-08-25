@@ -151,7 +151,8 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
                                 "default-src 'self'; "
                                         + "script-src 'self' https://js.tosspayments.com; "
-                                        + "connect-src 'self' https://api.tosspayments.com; "
+                                        + "connect-src 'self' https://*.tosspayments.com; "
+                                        + "frame-src https://*.tosspayments.com; "
                                         + "style-src 'self'; "
                                         + "img-src 'self' data: https:; "
                                         + "object-src 'none'; "
