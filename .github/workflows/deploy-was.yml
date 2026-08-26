@@ -59,6 +59,7 @@ jobs:
           WAR_FILE=$(ls build/libs/*.war | head -1)
           aws s3 cp "$WAR_FILE" s3://catchcatch-backup-511529/build-backups/shoppingmall-backend/ROOT-latest.war
 
+
       - name: SSH 배포 키 등록
         run: |
           mkdir -p ~/.ssh
