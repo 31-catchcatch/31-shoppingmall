@@ -149,6 +149,12 @@ public class SellerAuthService {
         User user = userRepository.findByUsernameAndDeletedFalse(request.loginId())
                 .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
 
+        // 아이디 대소문자 구분 로그인 (DB 조회는 collation 상 대소문자 무시라 여기서 확정).
+        // 잠금 검사 전에 판정해 케이스 불일치가 실제 계정 잠금 카운트를 건드리지 않게 한다.
+        if (!user.getUsername().equals(request.loginId())) {
+            throw new CustomException(ErrorCode.LOGIN_FAILED);
+        }
+
         // [3-2 조치] 잠금 확인 -> 비밀번호 대조 -> 결과 기록
         loginAttemptService.assertNotLocked(user);
 
