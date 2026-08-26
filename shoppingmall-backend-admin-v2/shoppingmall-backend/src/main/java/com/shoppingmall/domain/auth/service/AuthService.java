@@ -63,6 +63,14 @@ public class AuthService {
         User user = userRepository.findByUsernameAndDeletedFalse(request.username())
                 .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_FAILED));
 
+        // 아이디는 대소문자를 구분해 로그인한다. DB 조회는 collation 상 대소문자를 무시하므로
+        // 저장된 값과 입력값의 대소문자가 정확히 같은지 여기서 확정한다.
+        // (중복 가입 방지는 existsByUsername 이 대소문자 무시로 계속 막는다 — 의도된 비대칭)
+        // 존재하지 않는 아이디와 동일하게 취급하기 위해 잠금 검사 전에 판정한다.
+        if (!user.getUsername().equals(request.username())) {
+            throw new CustomException(ErrorCode.LOGIN_FAILED);
+        }
+
         // [3-2 조치] 잠금 확인 -> 비밀번호 대조 -> 결과 기록
         loginAttemptService.assertNotLocked(user);
 
