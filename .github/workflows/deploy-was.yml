@@ -49,6 +49,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: 소스코드 및 빌드 산출물 백업 (S3)
+        continue-on-error: true
+        working-directory: shoppingmall-backend-admin-v2/shoppingmall-backend
+        run: |
+          git archive --format=zip -o /tmp/source-latest.zip HEAD
+          aws s3 cp /tmp/source-latest.zip s3://catchcatch-backup-511529/source-backups/shoppingmall-backend/latest.zip
+
+          WAR_FILE=$(ls build/libs/*.war | head -1)
+          aws s3 cp "$WAR_FILE" s3://catchcatch-backup-511529/build-backups/shoppingmall-backend/ROOT-latest.war
+
+      - name: SSH 배포 키 등록
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
       - name: SSH 배포 키 등록
         run: |
           mkdir -p ~/.ssh
