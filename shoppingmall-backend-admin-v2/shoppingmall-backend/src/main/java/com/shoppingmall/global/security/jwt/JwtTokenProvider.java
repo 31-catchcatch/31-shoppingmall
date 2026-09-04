@@ -120,6 +120,21 @@ public class JwtTokenProvider {
     }
 
     /**
+     * [H-2 조치] 이 토큰이 Refresh Token 인지 판정한다.
+     *
+     * <p>두 토큰은 같은 키로 서명되고 종류를 나타내는 클레임이 없다. 그래서 Refresh Token 을
+     * 액세스 쿠키({@code CC_AT})에 넣으면 인증 필터가 그대로 받아들여, 15분이어야 할 노출 창이
+     * <b>7일</b>이 됐다. 회전으로 DB 행이 지워진 옛 토큰도 서명·만료가 유효한 동안 계속 통했다.
+     *
+     * <p>판정 근거로 {@code jti} 를 쓴다. Refresh Token 에만 jti 가 붙는다는 기존 차이를
+     * 그대로 이용하므로 <b>토큰 형식이 바뀌지 않고, 배포해도 기존 로그인이 끊기지 않는다.</b>
+     * (typ 클레임을 넣는 정식 구분은 후속 단계에서 하고, 이 판정은 그때 전환기 규칙이 된다)
+     */
+    public boolean isRefreshToken(String token) {
+        return parseClaims(token).getId() != null;
+    }
+
+    /**
      * [4-2 조치] 토큰 발급시각(iat). 로그아웃 이후 발급분인지 판정하는 데 쓴다.
      *
      * <p>JWT 의 iat 는 초 단위라 밀리초 이하는 버려진다. 경계값 처리는

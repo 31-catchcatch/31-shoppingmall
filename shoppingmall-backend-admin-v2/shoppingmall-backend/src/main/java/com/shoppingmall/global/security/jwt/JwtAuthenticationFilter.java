@@ -96,9 +96,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** [4-1 조치 · 3단계] 인증 쿠키만 본다. Authorization 헤더 경로는 제거됐다. */
     private String resolveToken(HttpServletRequest request) {
         String candidate = fromCookie(request);
-        return (StringUtils.hasText(candidate) && jwtTokenProvider.validateToken(candidate))
-                ? candidate
-                : null;
+        if (!StringUtils.hasText(candidate) || !jwtTokenProvider.validateToken(candidate)) {
+            return null;
+        }
+
+        // [H-2 조치] Refresh Token 을 액세스 쿠키 자리에 넣은 요청을 거부한다.
+        // 서명·만료만 검사하던 탓에 7일짜리 토큰이 액세스 토큰으로 통했고,
+        // 무효화 레지스트리 수명(15분)이 지나면 로그아웃한 계정에서도 다시 통했다.
+        if (jwtTokenProvider.isRefreshToken(candidate)) {
+            log.debug("리프레시 토큰이 액세스 쿠키로 전달됨. 인증 미적용");
+            return null;
+        }
+
+        return candidate;
     }
 
     private String fromCookie(HttpServletRequest request) {
